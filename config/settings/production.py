@@ -18,4 +18,5 @@ ENABLE_SILK = False
 ALLOWED_HOSTS = [
     "genzplaying.com",
     "www.genzplaying.com",
+    "api.genzplayzone.com",
 ]
