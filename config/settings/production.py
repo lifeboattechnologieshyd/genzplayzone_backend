@@ -19,4 +19,6 @@ ALLOWED_HOSTS = [
     "genzplaying.com",
     "www.genzplaying.com",
     "api.genzplayzone.com",
+    "127.0.0.1",
+    "localhost",
 ]
