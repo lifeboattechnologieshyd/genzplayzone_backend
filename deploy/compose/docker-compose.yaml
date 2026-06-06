@@ -3,50 +3,57 @@ services:
     image: postgres:17
     container_name: genzplayzone-postgres
     restart: unless-stopped
+
     env_file:
       - ../../.env.docker
+
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-genzplayzone}
       - PGSSLMODE=${PGSSLMODE:-disable}
+
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
+
     volumes:
       - pg_data:/var/lib/postgresql/data
+
     networks:
       - genzplayzone-network
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   backend:
     image: genzplayzone-backend:latest
-    build:
-      context: ../..
-      dockerfile: deploy/docker/Dockerfile
-      tags:
-        - genzplayzone-backend:latest
     container_name: genzplayzone-backend
     restart: unless-stopped
+
     env_file:
       - ../../.env
+
     environment:
       POSTGRES_DB_HOST: postgres
       POSTGRES_DB_PORT: 5432
-      POSTGRES_DB_NAME: ${POSTGRES_DB:-genzplayzone}
-      POSTGRES_DB_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB_NAME: ${POSTGRES_DB_NAME:-genzplayzone}
+      POSTGRES_DB_USER: ${POSTGRES_DB_USER:-postgres}
+      POSTGRES_DB_PASSWORD: ${POSTGRES_DB_PASSWORD}
       POSTGRES_DB_SSL_ENABLED: "False"
+
     depends_on:
       postgres:
         condition: service_healthy
+
     ports:
       - "${HTTP_PORT:-8013}:8000"
+
     networks:
       - genzplayzone-network
+
     healthcheck:
       test: ["CMD", "python", "-c", "print('healthy')"]
       interval: 10s
