@@ -20,6 +20,7 @@ __pycache__/
 .env
 env/
 .env.bak/
+.env.docker
 
 # Virtual Environments
 venv/
