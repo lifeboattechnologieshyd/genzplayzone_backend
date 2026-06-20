@@ -113,6 +113,3 @@ class VerifyOTP(APIView):
             description="Login successful"
         )
 
-
-
-
