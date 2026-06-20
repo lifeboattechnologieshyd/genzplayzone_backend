@@ -2,7 +2,7 @@ from django.urls import path
 
 from backoffice.support import AdminSupportTicketsAPIView, AdminSupportTicketDetailAPIView, \
     AdminReplySupportTicketAPIView, AdminUpdateSupportTicketStatusAPIView
-from backoffice.user import MobileSendOTPAdminView
+from backoffice.user import MobileSendOTPAdminView, MobileVerifyOTPAdminView
 
 urlpatterns = [
     path("support/tickets", AdminSupportTicketsAPIView.as_view()),
