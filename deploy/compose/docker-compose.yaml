@@ -4,10 +4,13 @@ services:
     container_name: genzplayzone-postgres
     restart: unless-stopped
 
+    env_file:
+      - ../../.env
+
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: H7mP92xQvL8KcT41
-      POSTGRES_DB: genzplayzone
+      POSTGRES_USER: ${POSTGRES_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
       PGSSLMODE: disable
 
     ports:
@@ -20,7 +23,7 @@ services:
       - genzplayzone-network
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d genzplayzone"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER} -d ${POSTGRES_DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,14 +42,6 @@ services:
 
     env_file:
       - ../../.env
-
-    environment:
-      POSTGRES_DB_HOST: postgres
-      POSTGRES_DB_PORT: 5432
-      POSTGRES_DB_NAME: genzplayzone
-      POSTGRES_DB_USER: postgres
-      POSTGRES_DB_PASSWORD: H7mP92xQvL8KcT41
-      POSTGRES_DB_SSL_ENABLED: "False"
 
     depends_on:
       postgres:
