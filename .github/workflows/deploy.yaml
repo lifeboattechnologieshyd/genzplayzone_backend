@@ -33,6 +33,17 @@ jobs:
 
           docker network create genzplayzone-network || true
 
+          # Stop existing compose project
+          docker compose \
+            -p genzplayzone \
+            -f deploy/compose/docker-compose.yaml \
+            --env-file .env.docker \
+            down || true
+
+          # Remove old containers if they still exist
+          docker rm -f genzplayzone-backend genzplayzone-postgres 2>/dev/null || true
+
+          # Start services
           docker compose \
             -p genzplayzone \
             -f deploy/compose/docker-compose.yaml \
