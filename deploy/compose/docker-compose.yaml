@@ -8,10 +8,10 @@ services:
       - ../../.env.docker
 
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - PGSSLMODE=${PGSSLMODE:-disable}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGSSLMODE: ${PGSSLMODE:-disable}
 
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -23,13 +23,14 @@ services:
       - genzplayzone-network
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   backend:
     image: genzplayzone-backend:latest
+
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
@@ -40,15 +41,7 @@ services:
     restart: unless-stopped
 
     env_file:
-      - ../../.env
-
-    environment:
-      POSTGRES_DB_HOST: postgres
-      POSTGRES_DB_PORT: 5432
-      POSTGRES_DB_NAME: ${POSTGRES_DB:-genzplayzone}
-      POSTGRES_DB_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB_SSL_ENABLED: "False"
+      - ../../.env.docker
 
     depends_on:
       postgres:
