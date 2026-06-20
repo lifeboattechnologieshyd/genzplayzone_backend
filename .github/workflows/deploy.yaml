@@ -28,6 +28,7 @@ jobs:
         run: |
           ssh "${{ secrets.GENZPLAYZONE_EC2_USER }}@${{ secrets.GENZPLAYZONE_EC2_HOST }}" << 'EOF'
           set -e
+
           cd /home/ubuntu/genzplayzone_backend
 
           git fetch origin
@@ -39,7 +40,14 @@ jobs:
           docker compose \
             -p genzplayzone \
             -f deploy/compose/docker-compose.yaml \
-            up -d --build
+            down || true
+
+          docker rm -f genzplayzone-postgres genzplayzone-backend 2>/dev/null || true
+
+          docker compose \
+            -p genzplayzone \
+            -f deploy/compose/docker-compose.yaml \
+            up -d --build --force-recreate
 
           docker image prune -f
           EOF
