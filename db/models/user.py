@@ -148,3 +148,29 @@ class OTPs(AuditModel):
 
     class Meta:
         db_table = "otp"
+
+
+class Sport(AuditModel):
+    name = models.CharField(
+        max_length=100,
+        unique=True
+    )
+    icon = models.CharField(
+        null=True,
+        blank=True,
+        max_length=200,
+    )
+    description = models.TextField(
+        null=True,
+        blank=True
+    )
+    display_order = models.PositiveIntegerField(
+        default=0
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "sports"
+        ordering = ["display_order", "name"]
+    def __str__(self):
+        return self.name
