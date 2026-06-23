@@ -10,7 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from db.models.user import OTPs, UserMaster
+from db.models.user import OTPs, UserMaster, Devices
 from shared.clients.s3 import add_unique_suffix_to_filename, sanitize_filename
 from shared.clients.sms import send_otp_sms
 from shared.utils import CustomResponse, getReferralCode
@@ -93,7 +93,7 @@ class VerifyOTP(APIView):
                 mobile=mobile,
                 is_mobile_verified=True,
                 referral_code=getReferralCode(),
-                user_role = ["parent"]
+                user_role = ["user"]
             )
         else:
             if not user.is_mobile_verified:
@@ -105,6 +105,22 @@ class VerifyOTP(APIView):
         # can_apply_referral = not Referrals.objects.filter(
         #     referred_user=user
         # ).exists()
+        if "device_id" in request.data:
+            print("Creating device session...")
+            session = Devices.objects.create(
+                user=user,
+                device_id=request.data.get("device_id", ""),
+                platform=request.data.get("platform", ""),
+                app_version=request.data.get("app_version", ""),
+                fcm_token=request.data.get("fcm_token", ""),
+                last_login=timezone.now(),
+                is_active=True
+            )
+            print("================================")
+            print("DEVICE SESSION CREATED")
+            print("================================")
+            print(f"Session ID: {session.id}")
+            print("================================")
         return CustomResponse().successResponse(
             data={
                 "user_id": str(user.id),
