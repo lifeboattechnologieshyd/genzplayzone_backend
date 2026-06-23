@@ -38,7 +38,11 @@ class UserAuditModel(models.Model):
 
 class AuditModel(TimeAuditModel, UserAuditModel):
     """To path when the record was created and last modified"""
-
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
     class Meta:
         abstract = True
 
@@ -151,6 +155,8 @@ class OTPs(AuditModel):
 
 
 class Sport(AuditModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     name = models.CharField(
         max_length=100,
         unique=True
@@ -174,3 +180,43 @@ class Sport(AuditModel):
         ordering = ["display_order", "name"]
     def __str__(self):
         return self.name
+
+class Devices(AuditModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        UserMaster,
+        on_delete=models.CASCADE,
+        related_name="sessions",
+        null=True,
+        blank=True
+    )
+    device_id = models.CharField(
+        max_length=200,
+    )
+    platform = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True
+    )
+    app_version = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True
+    )
+    fcm_token = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True
+    )
+    is_active = models.BooleanField(default=True)
+    last_login = models.DateTimeField(
+        blank=True,
+        null=True
+    )
+    class Meta:
+        db_table = "devices"
+        indexes = [
+            models.Index(fields=["device_id"]),
+            models.Index(fields=["fcm_token"]),
+            models.Index(fields=["user"])
+        ]
