@@ -5,9 +5,7 @@ def send_otp_sms(mobile, otp):
     try:
 
         message = (
-            f"Use OTP {otp} to login to GENZPLAYZONE. "
-            f"OTP is valid for 10 minutes. "
-            f"Do not share this OTP with anyone."
+            f"Use OTP {otp} to login to GENZPLAYZONE. OTP is valid for 10 minutes. Do not share this OTP with anyone. -GENZPLAYZONE"
         )
         url = (
             "https://full2ads.com/smsapi/index"
