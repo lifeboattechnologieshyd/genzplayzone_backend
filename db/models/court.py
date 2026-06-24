@@ -35,6 +35,19 @@ class Court(AuditModel):
     is_active = models.BooleanField(
         default=True
     )
+    avg_rating = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=0
+    )
+    reviews_count = models.PositiveIntegerField(
+        default=0
+    )
+    starting_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
     class Meta:
         db_table = "courts"
         ordering = ["display_order", "name"]

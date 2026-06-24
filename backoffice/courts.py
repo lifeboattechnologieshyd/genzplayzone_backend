@@ -24,6 +24,7 @@ class CourtsApi(APIView):
         name = request.data.get("name")
         description = request.data.get("description")
         cover_image = request.data.get("cover_image")
+        starting_price = request.data.get("starting_price", 800)
         slot_duration_minutes = request.data.get(
             "slot_duration_minutes",
             60
@@ -67,7 +68,8 @@ class CourtsApi(APIView):
             cover_image=cover_image,
             slot_duration_minutes=slot_duration_minutes,
             max_players=max_players,
-            display_order=display_order
+            display_order=display_order,
+            starting_prince=starting_price,
         )
         for sport_id in sport_ids:
             try:
@@ -120,7 +122,8 @@ class CourtsApi(APIView):
                 "cover_image": court.cover_image,
                 "slot_duration_minutes": court.slot_duration_minutes,
                 "max_players": court.max_players,
-                "sports": sports
+                "sports": sports,
+                "starting_price":court.starting_price,
             })
         return CustomResponse().successResponse(
             data={
@@ -143,6 +146,10 @@ class CourtsApi(APIView):
         court.description = request.data.get(
             "description",
             court.description
+        )
+        court.starting_price = request.data.get(
+            "starting_price",
+            court.starting_price
         )
         court.cover_image = request.data.get(
             "cover_image",
