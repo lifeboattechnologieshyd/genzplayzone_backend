@@ -184,7 +184,7 @@ class BannersApi(APIView):
                 "description": banner.description,
                 "image": banner.image,
                 "redirect_type": banner.redirect_type,
-                "redirect_value": banner.redirect_value
+                "redirect_value": banner.redirect_id
             })
 
         return CustomResponse().successResponse(

@@ -3,7 +3,7 @@ from logging import exception
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from db.models import Venue, Court, Sport, CourtSport
+from db.models import Venue, Court, Sport, CourtSport, CourtMedia
 from shared.utils import CustomResponse
 
 
@@ -197,4 +197,73 @@ class CourtsApi(APIView):
         return CustomResponse().successResponse(
             data={},
             description="Court deleted successfully"
+        )
+
+
+class CourtMediaApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        court_id = request.data.get("court_id")
+        image = request.data.get("image")
+        display_order = request.data.get(
+            "display_order",
+            0
+        )
+        if not court_id:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court is required"
+            )
+        if not image:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Image is required"
+            )
+        try:
+            court = Court.objects.get(
+                id=court_id,
+                is_active=True
+            )
+        except Court.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court not found"
+            )
+        media = CourtMedia.objects.create(
+            court=court,
+            image=image,
+            display_order=display_order
+        )
+        return CustomResponse().successResponse(
+            data={
+                "id": str(media.id)
+            },
+            description="Court media created successfully"
+        )
+
+    def get(self, request):
+        court_id = request.GET.get("court_id")
+        media_queryset = CourtMedia.objects.filter(
+            is_active=True
+        )
+        if court_id:
+            media_queryset = media_queryset.filter(
+                court_id=court_id
+            )
+        data = []
+        for media in media_queryset.order_by(
+            "display_order"
+        ):
+            data.append({
+                "id": str(media.id),
+                "court_id": str(media.court.id),
+                "image": media.image,
+                "display_order": media.display_order
+            })
+        return CustomResponse().successResponse(
+            data={
+                "media": data
+            },
+            description="Court media fetched successfully"
         )

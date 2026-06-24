@@ -239,8 +239,9 @@ class Banner(AuditModel):
         null=True,
         blank=True
     )
-    redirect_id = models.UUIDField(
+    redirect_id = models.CharField(
         null=True,
+        max_length=100,
         blank=True
     )
     display_order = models.PositiveIntegerField(
