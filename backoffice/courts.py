@@ -267,3 +267,48 @@ class CourtMediaApi(APIView):
             },
             description="Court media fetched successfully"
         )
+
+    def put(self, request, media_id):
+        try:
+            media = CourtMedia.objects.get(
+                id=media_id,
+                is_active=True
+            )
+        except CourtMedia.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court media not found"
+            )
+        media.image = request.data.get(
+            "image",
+            media.image
+        )
+        media.display_order = request.data.get(
+            "display_order",
+            media.display_order
+        )
+        media.save()
+        return CustomResponse().successResponse(
+            data={},
+            description="Court media updated successfully"
+        )
+
+    def delete(self, request, media_id):
+        try:
+            media = CourtMedia.objects.get(
+                id=media_id,
+                is_active=True
+            )
+        except CourtMedia.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court media not found"
+            )
+        media.is_active = False
+        media.save(
+            update_fields=["is_active"]
+        )
+        return CustomResponse().successResponse(
+            data={},
+            description="Court media deleted successfully"
+        )
