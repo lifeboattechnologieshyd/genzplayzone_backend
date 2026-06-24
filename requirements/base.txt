@@ -35,7 +35,8 @@ django-health-check==3.18.*
 
 # Utilities
 requests>=2.32.0
-
+# firebase
+firebase-admin==6.9.0
 # crum
 django-crum==0.7.9
 
