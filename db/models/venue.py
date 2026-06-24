@@ -3,54 +3,43 @@ from django.db import models
 
 
 class Venue(AuditModel):
-
     name = models.CharField(
         max_length=255
     )
-
     address = models.TextField(
         blank=True,
         null=True
     )
-
     latitude = models.DecimalField(
         max_digits=10,
         decimal_places=7,
         null=True,
         blank=True
     )
-
     longitude = models.DecimalField(
         max_digits=10,
         decimal_places=7,
         null=True,
         blank=True
     )
-
     cover_image = models.CharField(
         max_length=500,
         blank=True,
         null=True
     )
-
     opening_time = models.TimeField()
-
     closing_time = models.TimeField()
-
     contact_number = models.CharField(
         max_length=15,
         blank=True,
         null=True
     )
-
     description = models.TextField(
         blank=True,
         null=True
     )
-
     is_active = models.BooleanField(
         default=True
     )
-
     class Meta:
         db_table = "venues"
