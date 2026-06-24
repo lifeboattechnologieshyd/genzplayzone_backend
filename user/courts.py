@@ -55,7 +55,10 @@ class CourtsApi(APIView):
                 },
                 "sports": sports,
                 "slot_duration_minutes": court.slot_duration_minutes,
-                "max_players": court.max_players
+                "max_players": court.max_players,
+                "starting_price": court.starting_price,
+                "avg_rating": court.avg_rating,
+                "reviews": court.reviews_count,
             })
         return CustomResponse().successResponse(
             data={
