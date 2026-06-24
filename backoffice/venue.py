@@ -83,7 +83,7 @@ class VenuesApi(APIView):
         )
 
     def put(self, request, venue_id):
-        venue = Venue.objects.filter(id=venue_id)
+        venue = Venue.objects.filter(id=venue_id).first()
         if not venue:
             return CustomResponse().errorResponse(
                 data={},
@@ -132,7 +132,7 @@ class VenuesApi(APIView):
         )
 
     def delete(self, request, venue_id):
-        venue = Venue.objects.filter(id=venue_id)
+        venue = Venue.objects.filter(id=venue_id).first()
         if not venue:
             return CustomResponse().errorResponse(
                 data={},
