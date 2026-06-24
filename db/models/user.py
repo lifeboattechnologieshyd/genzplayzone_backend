@@ -220,3 +220,35 @@ class Devices(AuditModel):
             models.Index(fields=["fcm_token"]),
             models.Index(fields=["user"])
         ]
+
+class Banner(AuditModel):
+    title = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+    description = models.TextField(
+        null=True,
+        blank=True
+    )
+    image = models.CharField(
+        max_length=500
+    )
+    redirect_type = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True
+    )
+    redirect_id = models.UUIDField(
+        null=True,
+        blank=True
+    )
+    display_order = models.PositiveIntegerField(
+        default=0
+    )
+    is_active = models.BooleanField(
+        default=True
+    )
+    class Meta:
+        db_table = "banners"
+        ordering = ["display_order"]

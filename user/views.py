@@ -6,11 +6,11 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.utils import timezone
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from db.models.user import OTPs, UserMaster, Devices
+from db.models.user import OTPs, UserMaster, Devices, Banner
 from shared.clients.s3 import add_unique_suffix_to_filename, sanitize_filename
 from shared.clients.sms import send_otp_sms
 from shared.utils import CustomResponse, getReferralCode
@@ -163,3 +163,33 @@ class FileUploadView(APIView):
             return CustomResponse().errorResponse(
                 data={"error": str(e)}, description="File upload failed - "+str(e))
 
+
+class BannersApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        banners = Banner.objects.filter(
+            is_active=True
+        ).order_by(
+            "display_order"
+        )
+
+        data = []
+
+        for banner in banners:
+            data.append({
+                "id": str(banner.id),
+                "title": banner.title,
+                "description": banner.description,
+                "image": banner.image,
+                "redirect_type": banner.redirect_type,
+                "redirect_value": banner.redirect_value
+            })
+
+        return CustomResponse().successResponse(
+            data={
+                "banners": data
+            },
+            description="Banners fetched successfully"
+        )
