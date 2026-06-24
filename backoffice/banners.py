@@ -28,7 +28,7 @@ class BannersApi(APIView):
             description=description,
             image=image,
             redirect_type=redirect_type,
-            redirect_value=redirect_value,
+            redirect_id=redirect_value,
             display_order=display_order
         )
 
@@ -56,7 +56,7 @@ class BannersApi(APIView):
                 "description": banner.description,
                 "image": banner.image,
                 "redirect_type": banner.redirect_type,
-                "redirect_value": banner.redirect_value,
+                "redirect_value": banner.redirect_id,
                 "display_order": banner.display_order
             })
 
@@ -96,9 +96,9 @@ class BannersApi(APIView):
             "redirect_type",
             banner.redirect_type
         )
-        banner.redirect_value = request.data.get(
+        banner.redirect_id = request.data.get(
             "redirect_value",
-            banner.redirect_value
+            banner.redirect_id
         )
         banner.display_order = request.data.get(
             "display_order",
