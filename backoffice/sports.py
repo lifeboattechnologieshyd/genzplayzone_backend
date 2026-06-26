@@ -67,3 +67,66 @@ class SportsApi(APIView):
             },
             description="Sports fetched successfully"
         )
+
+    def put(self, request, sport_id):
+        try:
+            sport = Sport.objects.get(
+                id=sport_id,
+                is_active=True
+            )
+        except Sport.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Sport not found"
+            )
+        name = request.data.get("name")
+        if name:
+            sport_exists = Sport.objects.filter(
+                name__iexact=name.strip(),
+                is_active=True
+            ).exclude(
+                id=sport.id
+            ).exists()
+            if sport_exists:
+                return CustomResponse().errorResponse(
+                    data={},
+                    description="Sport already exists"
+                )
+            sport.name = name.strip()
+        sport.description = request.data.get(
+            "description",
+            sport.description
+        )
+        sport.icon = request.data.get(
+            "icon",
+            sport.icon
+        )
+        sport.display_order = request.data.get(
+            "display_order",
+            sport.display_order
+        )
+        sport.save()
+        return CustomResponse().successResponse(
+            data={},
+            description="Sport updated successfully"
+        )
+
+    def delete(self, request, sport_id):
+        try:
+            sport = Sport.objects.get(
+                id=sport_id,
+                is_active=True
+            )
+        except Sport.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Sport not found"
+            )
+        sport.is_active = False
+        sport.save(
+            update_fields=["is_active"]
+        )
+        return CustomResponse().successResponse(
+            data={},
+            description="Sport deleted successfully"
+        )

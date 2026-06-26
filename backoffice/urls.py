@@ -18,6 +18,8 @@ urlpatterns = [
     path("verify-otp", MobileVerifyOTPAdminView.as_view()),
 
     path("sports", SportsApi.as_view()),
+    path("sports/<uuid:sport_id>", SportsApi.as_view()),
+
     path("banners",BannersApi.as_view()),
     path("banners/<uuid:banner_id>",BannersApi.as_view()),
     path("venues", VenuesApi.as_view()),
