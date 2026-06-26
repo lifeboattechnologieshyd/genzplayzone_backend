@@ -19,7 +19,8 @@ class CourtsApi(APIView):
             "venue"
         ).prefetch_related(
             "media",
-            "court_sports__sport"
+            "court_sports__sport",
+            "venue__amenities__amenity"
         )
         if venue_id:
             courts = courts.filter(
@@ -37,7 +38,7 @@ class CourtsApi(APIView):
         data = []
         for court in courts:
             sports = []
-            for court_sport in court.court_sports.filter(is_active=True):
+            for court_sport in court.court_sports.all():
                 sports.append({
                     "id": str(court_sport.sport.id),
                     "name": court_sport.sport.name
@@ -49,6 +50,14 @@ class CourtsApi(APIView):
                     "image": item.image,
                     "display_order": item.display_order
                 })
+            amenities = []
+
+            for venue_amenity in court.venue.amenities.all():
+                amenities.append({
+                    "id": str(venue_amenity.amenity.id),
+                    "name": venue_amenity.amenity.name,
+                    "icon": venue_amenity.amenity.icon
+                })
             data.append({
                 "id": str(court.id),
                 "name": court.name,
@@ -56,7 +65,8 @@ class CourtsApi(APIView):
                 "cover_image": court.cover_image,
                 "venue": {
                     "id": str(court.venue.id),
-                    "name": court.venue.name
+                    "name": court.venue.name,
+                    "amenities": amenities
                 },
                 "sports": sports,
                 "media": media,
