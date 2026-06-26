@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .courts import CourtsApi
+from .courts import CourtsApi, CourtPricingApi
 from .sports import SportsApi
 from .views import SendOtp, VerifyOTP, FileUploadView, BannersApi
 
@@ -11,6 +11,7 @@ urlpatterns = [
     path("sports",SportsApi.as_view()),
     path("banners",BannersApi.as_view()),
     path("courts",CourtsApi.as_view()),
+    path("pricing",CourtPricingApi.as_view()),
 
 
 ]

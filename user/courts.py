@@ -1,7 +1,9 @@
+from datetime import datetime
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from db.models import Court, CourtMedia
+from db.models import Court, CourtMedia, CourtPricing
 from shared.utils import CustomResponse
 
 
@@ -84,3 +86,68 @@ class CourtsApi(APIView):
         )
 
 
+class CourtPricingApi(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        court_id = request.GET.get("court_id")
+        booking_date = request.GET.get("date")
+        if not court_id:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court is required"
+            )
+
+        if not booking_date:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Booking date is required"
+            )
+        try:
+            court = Court.objects.get(
+                id=court_id,
+                is_active=True
+            )
+        except Court.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court not found"
+            )
+
+        try:
+            booking_date = datetime.strptime(
+                booking_date,
+                "%Y-%m-%d"
+            ).date()
+        except Exception:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Invalid date format. Use YYYY-MM-DD"
+            )
+        day = booking_date.strftime("%A").upper()
+        pricing = CourtPricing.objects.filter(
+            court=court,
+            day=day,
+            is_active=True
+        ).order_by(
+            "start_time"
+        )
+        data = []
+        for item in pricing:
+            data.append({
+                "id": str(item.id),
+                "start_time": item.start_time,
+                "end_time": item.end_time,
+                "price": item.price
+            })
+        return CustomResponse().successResponse(
+            data={
+                "court": {
+                    "id": str(court.id),
+                    "name": court.name
+                },
+                "date": booking_date,
+                "day": day,
+                "pricing": data
+            },
+            description="Pricing fetched successfully"
+        )
