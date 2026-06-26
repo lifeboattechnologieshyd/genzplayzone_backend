@@ -69,7 +69,7 @@ class CourtsApi(APIView):
             slot_duration_minutes=slot_duration_minutes,
             max_players=max_players,
             display_order=display_order,
-            starting_prince=starting_price,
+            starting_price=starting_price,
         )
         for sport_id in sport_ids:
             try:
