@@ -1,7 +1,7 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from db.models import Sport
+from db.models import Sport, CourtSport
 from shared.utils import CustomResponse
 
 
@@ -119,6 +119,15 @@ class SportsApi(APIView):
             return CustomResponse().errorResponse(
                 data={},
                 description="Sport not found"
+            )
+        court_exists = CourtSport.objects.filter(
+            sport=sport,
+            is_active=True
+        ).exists()
+        if court_exists:
+            return CustomResponse().errorResponse(
+                data={},
+                description="This sport is mapped to one or more courts and cannot be deleted."
             )
         sport.is_active = False
         sport.save(

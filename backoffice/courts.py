@@ -83,7 +83,10 @@ class CourtsApi(APIView):
                     sport=sport
                 )
             except exception as error:
-                continue
+                return CustomResponse().errorResponse(
+                    data={},
+                    description=f"{error}"
+                )
         return CustomResponse().successResponse(
             data={"id": str(court.id)},
             description="Court created successfully"
