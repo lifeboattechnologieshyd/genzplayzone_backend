@@ -72,7 +72,6 @@ class SportsApi(APIView):
         try:
             sport = Sport.objects.get(
                 id=sport_id,
-                is_active=True
             )
         except Sport.DoesNotExist:
             return CustomResponse().errorResponse(
@@ -115,7 +114,6 @@ class SportsApi(APIView):
         try:
             sport = Sport.objects.get(
                 id=sport_id,
-                is_active=True
             )
         except Sport.DoesNotExist:
             return CustomResponse().errorResponse(
