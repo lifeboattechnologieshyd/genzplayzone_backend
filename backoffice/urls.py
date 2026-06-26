@@ -6,7 +6,7 @@ from backoffice.sports import SportsApi
 from backoffice.support import AdminSupportTicketsAPIView, AdminSupportTicketDetailAPIView, \
     AdminReplySupportTicketAPIView, AdminUpdateSupportTicketStatusAPIView
 from backoffice.user import MobileSendOTPAdminView, MobileVerifyOTPAdminView
-from backoffice.venue import VenuesApi
+from backoffice.venue import VenuesApi, AmenitiesApi, VenueAmenitiesApi
 
 urlpatterns = [
     path("support/tickets", AdminSupportTicketsAPIView.as_view()),
@@ -22,8 +22,14 @@ urlpatterns = [
 
     path("banners",BannersApi.as_view()),
     path("banners/<uuid:banner_id>",BannersApi.as_view()),
+
     path("venues", VenuesApi.as_view()),
     path("venues/<uuid:venue_id>", VenuesApi.as_view()),
+
+    path("amenities", AmenitiesApi.as_view()),
+    path("amenities/<uuid:amenity_id>", AmenitiesApi.as_view()),
+    path("venue-amenities",VenueAmenitiesApi.as_view()),
+    path("venue-amenities/<uuid:venue_amenity_id>",VenueAmenitiesApi.as_view()),
 
     path("courts", CourtsApi.as_view()),
     path("courts/<uuid:court_id>", CourtsApi.as_view()),

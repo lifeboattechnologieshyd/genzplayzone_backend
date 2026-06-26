@@ -14,7 +14,6 @@ class CourtsApi(APIView):
         try:
             return Court.objects.get(
                 id=court_id,
-                is_active=True
             )
         except Court.DoesNotExist:
             return None
@@ -169,6 +168,10 @@ class CourtsApi(APIView):
         court.display_order = request.data.get(
             "display_order",
             court.display_order
+        )
+        court.is_active = request.data.get(
+            "is_active",
+            court.is_active
         )
         court.save()
         sport_ids = request.data.get(

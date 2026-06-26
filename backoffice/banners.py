@@ -73,7 +73,6 @@ class BannersApi(APIView):
         try:
             banner = Banner.objects.get(
                 id=banner_id,
-                is_active=True
             )
         except Banner.DoesNotExist:
             return CustomResponse().errorResponse(
@@ -103,6 +102,10 @@ class BannersApi(APIView):
         banner.display_order = request.data.get(
             "display_order",
             banner.display_order
+        )
+        banner.is_active = request.data.get(
+            "is_active",
+            banner.is_active
         )
         banner.save()
         return CustomResponse().successResponse(

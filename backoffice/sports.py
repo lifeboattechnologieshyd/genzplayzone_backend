@@ -82,7 +82,6 @@ class SportsApi(APIView):
         if name:
             sport_exists = Sport.objects.filter(
                 name__iexact=name.strip(),
-                is_active=True
             ).exclude(
                 id=sport.id
             ).exists()
@@ -103,6 +102,10 @@ class SportsApi(APIView):
         sport.display_order = request.data.get(
             "display_order",
             sport.display_order
+        )
+        sport.is_active = request.data.get(
+            "is_active",
+            sport.is_active
         )
         sport.save()
         return CustomResponse().successResponse(
