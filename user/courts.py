@@ -68,7 +68,8 @@ class CourtsApi(APIView):
                 "venue": {
                     "id": str(court.venue.id),
                     "name": court.venue.name,
-                    "amenities": amenities
+                    "amenities": amenities,
+                    "address": court.venue.address,
                 },
                 "sports": sports,
                 "media": media,
