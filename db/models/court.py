@@ -95,3 +95,75 @@ class CourtMedia(AuditModel):
     class Meta:
         db_table = "court_media"
         ordering = ["display_order"]
+
+
+class CourtPricing(AuditModel):
+
+    court = models.ForeignKey(
+        Court,
+        on_delete=models.CASCADE,
+        related_name="pricing"
+    )
+
+    day = models.CharField(
+        max_length=20,
+        choices=(
+            ("MONDAY", "MONDAY"),
+            ("TUESDAY", "TUESDAY"),
+            ("WEDNESDAY", "WEDNESDAY"),
+            ("THURSDAY", "THURSDAY"),
+            ("FRIDAY", "FRIDAY"),
+            ("SATURDAY", "SATURDAY"),
+            ("SUNDAY", "SUNDAY"),
+        )
+    )
+
+    start_time = models.TimeField()
+
+    end_time = models.TimeField()
+
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+
+    is_active = models.BooleanField(
+        default=True
+    )
+
+    class Meta:
+        db_table = "court_pricing"
+        ordering = [
+            "court",
+            "day",
+            "start_time"
+        ]
+
+class CourtPricingOverride(AuditModel):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    court = models.ForeignKey(
+        Court,
+        on_delete=models.CASCADE,
+        related_name="pricing_overrides"
+    )
+    booking_date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+    reason = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+    is_active = models.BooleanField(
+        default=True
+    )
+    class Meta:
+        db_table = "court_pricing_overrides"

@@ -1,7 +1,7 @@
 from django.urls import path
 
 from backoffice.banners import BannersApi
-from backoffice.courts import CourtsApi, CourtMediaApi
+from backoffice.courts import CourtsApi, CourtMediaApi, CourtPricingsApi
 from backoffice.sports import SportsApi
 from backoffice.support import AdminSupportTicketsAPIView, AdminSupportTicketDetailAPIView, \
     AdminReplySupportTicketAPIView, AdminUpdateSupportTicketStatusAPIView
@@ -37,5 +37,7 @@ urlpatterns = [
     path("court-media",CourtMediaApi.as_view()),
     path("court-media/<uuid:media_id>",CourtMediaApi.as_view()),
 
+    path("court-pricing", CourtPricingsApi.as_view()),
+    path("court-pricing/<uuid:pricing_id>", CourtPricingsApi.as_view()),
 
 ]

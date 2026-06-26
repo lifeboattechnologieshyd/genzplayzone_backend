@@ -3,6 +3,9 @@ import random
 from rest_framework.response import Response
 from rest_framework import status
 
+from db.models import CourtPricing
+
+
 def getReferralCode():
     return f"GENZ{random.randint(10000, 99999)}"
 
@@ -47,3 +50,16 @@ class CustomResponse:
             },
             status=status,
         )
+
+
+from django.db.models import Min
+
+def update_starting_price(court):
+    lowest_price = CourtPricing.objects.filter(
+        court=court,
+        is_active=True
+    ).aggregate(
+        Min("price")
+    )
+    court.starting_price = lowest_price["price__min"] or 0
+    court.save(update_fields=["starting_price"])

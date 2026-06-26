@@ -3,8 +3,8 @@ from logging import exception
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from db.models import Venue, Court, Sport, CourtSport, CourtMedia
-from shared.utils import CustomResponse
+from db.models import Venue, Court, Sport, CourtSport, CourtMedia, CourtPricing
+from shared.utils import CustomResponse, update_starting_price
 
 
 class CourtsApi(APIView):
@@ -324,4 +324,178 @@ class CourtMediaApi(APIView):
         return CustomResponse().successResponse(
             data={},
             description="Court media deleted successfully"
+        )
+
+
+class CourtPricingsApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        court_id = request.data.get("court_id")
+        day = request.data.get("day")
+        start_time = request.data.get("start_time")
+        end_time = request.data.get("end_time")
+        price = request.data.get("price")
+        if not court_id:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court is required"
+            )
+        try:
+            court = Court.objects.get(
+                id=court_id,
+                is_active=True
+            )
+        except Court.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court not found"
+            )
+        if start_time >= end_time:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Start time should be less than end time"
+            )
+        overlap = CourtPricing.objects.filter(
+            court=court,
+            day=day,
+            is_active=True,
+            start_time__lt=end_time,
+            end_time__gt=start_time
+        ).exists()
+        if overlap:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Pricing overlaps with existing pricing"
+            )
+        pricing = CourtPricing.objects.create(
+            court=court,
+            day=day,
+            start_time=start_time,
+            end_time=end_time,
+            price=price
+        )
+        update_starting_price(court)
+        return CustomResponse().successResponse(
+            data={
+                "id": str(pricing.id)
+            },
+            description="Pricing created successfully"
+        )
+    def get(self, request):
+        court_id = request.GET.get("court_id")
+        day = request.GET.get("day")
+        pricings = CourtPricing.objects.filter(
+            is_active=True
+        ).select_related(
+            "court"
+        )
+        if court_id:
+            pricings = pricings.filter(
+                court_id=court_id
+            )
+        if day:
+            pricings = pricings.filter(
+                day=day
+            )
+        data = []
+        for pricing in pricings.order_by(
+            "court__name",
+            "day",
+            "start_time"
+        ):
+            data.append({
+                "id": str(pricing.id),
+                "court": {
+                    "id": str(pricing.court.id),
+                    "name": pricing.court.name
+                },
+                "day": pricing.day,
+                "start_time": pricing.start_time,
+                "end_time": pricing.end_time,
+                "price": pricing.price,
+                "is_active": pricing.is_active
+            })
+        return CustomResponse().successResponse(
+            data={
+                "pricing": data
+            },
+            description="Pricing fetched successfully"
+        )
+
+    def put(self, request, pricing_id):
+        try:
+            pricing = CourtPricing.objects.get(
+                id=pricing_id
+            )
+        except CourtPricing.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Pricing not found"
+            )
+        day = request.data.get(
+            "day",
+            pricing.day
+        )
+        start_time = request.data.get(
+            "start_time",
+            pricing.start_time
+        )
+        end_time = request.data.get(
+            "end_time",
+            pricing.end_time
+        )
+        if start_time >= end_time:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Start time should be less than end time"
+            )
+        overlap = CourtPricing.objects.filter(
+            court=pricing.court,
+            day=day,
+            is_active=True,
+            start_time__lt=end_time,
+            end_time__gt=start_time
+        ).exclude(
+            id=pricing.id
+        ).exists()
+        if overlap:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Pricing overlaps with existing pricing"
+            )
+        pricing.day = day
+        pricing.start_time = start_time
+        pricing.end_time = end_time
+        pricing.price = request.data.get(
+            "price",
+            pricing.price
+        )
+        pricing.is_active = request.data.get(
+            "is_active",
+            pricing.is_active
+        )
+        pricing.save()
+        update_starting_price(
+            pricing.court
+        )
+        return CustomResponse().successResponse(
+            data={},
+            description="Pricing updated successfully"
+        )
+
+    def delete(self, request, pricing_id):
+        try:
+            pricing = CourtPricing.objects.get(
+                id=pricing_id
+            )
+        except CourtPricing.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Pricing not found"
+            )
+        pricing.delete()
+        return CustomResponse().successResponse(
+            data={},
+            description="Pricing deleted successfully"
         )
