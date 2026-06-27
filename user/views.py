@@ -193,3 +193,69 @@ class BannersApi(APIView):
             },
             description="Banners fetched successfully"
         )
+
+class ProfileApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return CustomResponse().successResponse(
+            data={
+                "mobile": user.mobile,
+                "full_name": user.full_name,
+                "email": user.email,
+                "gender": user.gender,
+                "dob": user.dob,
+                "profile_image": user.profile_image,
+                "coins": user.coins,
+                "referral_code": user.referral_code,
+            },
+            description="Profile fetched successfully"
+        )
+
+    def put(self, request):
+        user = request.user
+        email = request.data.get("email")
+        if email:
+            email_exists = UserMaster.objects.filter(
+                email__iexact=email.strip()
+            ).exclude(
+                id=user.id
+            ).exists()
+            if email_exists:
+                return CustomResponse().errorResponse(
+                    data={},
+                    description="Email already exists"
+                )
+            user.email = email.strip()
+        user.full_name = request.data.get(
+            "full_name",
+            user.full_name
+        )
+        user.gender = request.data.get(
+            "gender",
+            user.gender
+        )
+        user.dob = request.data.get(
+            "dob",
+            user.dob
+        )
+
+        user.profile_image = request.data.get(
+            "profile_image",
+            user.profile_image
+        )
+        user.save()
+        return CustomResponse().successResponse(
+            data={
+                "mobile": user.mobile,
+                "full_name": user.full_name,
+                "email": user.email,
+                "gender": user.gender,
+                "dob": user.dob,
+                "profile_image": user.profile_image,
+                "coins": user.coins,
+                "referral_code": user.referral_code,
+            },
+            description="Profile updated successfully"
+        )

@@ -1,9 +1,10 @@
 import random
+from datetime import datetime
 
 from rest_framework.response import Response
 from rest_framework import status
 
-from db.models import CourtPricing
+from db.models import CourtPricing, Booking, BookingSlot
 
 
 def getReferralCode():
@@ -63,3 +64,76 @@ def update_starting_price(court):
     )
     court.starting_price = lowest_price["price__min"] or 0
     court.save(update_fields=["starting_price"])
+
+
+def generate_booking_number():
+    last_booking = Booking.objects.order_by(
+        "-created_at"
+    ).first()
+    if not last_booking:
+        return "GPZ000001"
+    try:
+        last_number = int(
+            last_booking.booking_number.replace(
+                "GPZ",
+                ""
+            )
+        )
+    except Exception:
+        last_number = 0
+    return f"GPZ{last_number + 1:06d}"
+
+def calculate_booking_amount(court, booking_date, slots):
+    day = booking_date.strftime(
+        "%A"
+    ).upper()
+    total_amount = 0
+    slot_prices = []
+    for slot in slots:
+        start_time = datetime.strptime(
+            slot["start_time"],
+            "%H:%M"
+        ).time()
+
+        end_time = datetime.strptime(
+            slot["end_time"],
+            "%H:%M"
+        ).time()
+        pricing = CourtPricing.objects.filter(
+            court=court,
+            day=day,
+            is_active=True,
+            start_time__lte=start_time,
+            end_time__gte=end_time
+        ).first()
+
+        if not pricing:
+            raise Exception(
+                f"No pricing configured for {slot['start_time']} - {slot['end_time']}"
+            )
+        total_amount += pricing.price
+        slot_prices.append({
+            "start_time": start_time,
+            "end_time": end_time,
+            "price": pricing.price
+        })
+    return total_amount, slot_prices
+
+
+
+def check_slot_availability(court,booking_date,slots):
+    for slot in slots:
+        exists = BookingSlot.objects.filter(
+            booking__court=court,
+            booking__booking_date=booking_date,
+            booking__booking_status__in=[
+                Booking.STATUS_PENDING_PAYMENT,
+                Booking.STATUS_CONFIRMED
+            ],
+            start_time=slot["start_time"],
+            end_time=slot["end_time"]
+        ).exists()
+        if exists:
+            raise Exception(
+                f"{slot['start_time']} - {slot['end_time']} already booked."
+            )
