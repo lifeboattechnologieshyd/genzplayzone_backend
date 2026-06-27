@@ -3,6 +3,7 @@ from datetime import datetime
 
 from rest_framework.response import Response
 from rest_framework import status
+from django.utils import timezone
 
 from db.models import CourtPricing, Booking, BookingSlot
 
@@ -136,4 +137,27 @@ def check_slot_availability(court,booking_date,slots):
         if exists:
             raise Exception(
                 f"{slot['start_time']} - {slot['end_time']} already booked."
+            )
+
+def validate_booking_datetime(booking_date,slots):
+    """
+    Raises Exception if booking is for a past date/time.
+    """
+    now = timezone.localtime()
+    today = now.date()
+    if booking_date < today:
+        raise Exception(
+            "Booking date cannot be in the past."
+        )
+    if booking_date > today:
+        return
+    current_time = now.time()
+    for slot in slots:
+        slot_start = datetime.strptime(
+            slot["start_time"],
+            "%H:%M"
+        ).time()
+        if slot_start <= current_time:
+            raise Exception(
+                f"{slot['start_time']} slot has already started."
             )

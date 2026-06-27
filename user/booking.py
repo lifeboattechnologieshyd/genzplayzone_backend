@@ -5,7 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from db.models import Court, Booking, BookingSlot
-from shared.utils import CustomResponse, check_slot_availability, calculate_booking_amount, generate_booking_number
+from shared.utils import CustomResponse, check_slot_availability, calculate_booking_amount, generate_booking_number, \
+    validate_booking_datetime
 
 
 class BookingsApi(APIView):
@@ -53,18 +54,9 @@ class BookingsApi(APIView):
             )
 
         try:
-            check_slot_availability(
-                court,
-                booking_date,
-                slots
-            )
-
-            total_amount, slot_prices = calculate_booking_amount(
-                court,
-                booking_date,
-                slots
-            )
-
+            validate_booking_datetime(booking_date,slots)
+            check_slot_availability(court, booking_date,slots)
+            total_amount, slot_prices = calculate_booking_amount(court, booking_date, slots)
             booking = Booking.objects.create(
                 booking_number=generate_booking_number(),
                 user=request.user,
@@ -72,16 +64,13 @@ class BookingsApi(APIView):
                 booking_date=booking_date,
                 total_amount=total_amount
             )
-
             for slot in slot_prices:
-
                 BookingSlot.objects.create(
                     booking=booking,
                     start_time=slot["start_time"],
                     end_time=slot["end_time"],
                     price=slot["price"]
                 )
-
             return CustomResponse().successResponse(
                 data={
                     "booking_id": str(booking.id),
@@ -90,7 +79,6 @@ class BookingsApi(APIView):
                 },
                 description="Booking created successfully"
             )
-
         except Exception as e:
             return CustomResponse().errorResponse(
                 data={},
