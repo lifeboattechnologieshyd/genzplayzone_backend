@@ -70,6 +70,8 @@ class CourtsApi(APIView):
                     "name": court.venue.name,
                     "amenities": amenities,
                     "address": court.venue.address,
+                    "latitude": court.venue.latitude,
+                    "longitude": court.venue.longitude,
                 },
                 "sports": sports,
                 "media": media,
