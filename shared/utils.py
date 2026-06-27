@@ -161,3 +161,35 @@ def validate_booking_datetime(booking_date,slots):
             raise Exception(
                 f"{slot['start_time']} slot has already started."
             )
+
+
+from datetime import datetime, timedelta
+
+
+def generate_slots(pricing, slot_duration):
+    slots = []
+    current = datetime.combine(
+        datetime.today(),
+        pricing.start_time
+    )
+    end = datetime.combine(
+        datetime.today(),
+        pricing.end_time
+    )
+
+    while current < end:
+
+        next_slot = current + timedelta(
+            minutes=slot_duration
+        )
+
+        if next_slot > end:
+            break
+
+        slots.append({
+            "start_time": current.time(),
+            "end_time": next_slot.time(),
+            "price": pricing.price
+        })
+        current = next_slot
+    return slots

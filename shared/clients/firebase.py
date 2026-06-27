@@ -12,7 +12,6 @@ from db.models import Devices
 def init_firebase():
     if firebase_admin._apps:
         return
-
     firebase_config = json.loads(
         base64.b64decode(settings.FIREBASE_CREDENTIALS).decode("utf-8")
     )
@@ -20,6 +19,7 @@ def init_firebase():
         firebase_config
     )
     firebase_admin.initialize_app(cred)
+    print("firebase admin initialized")
 
 
 def send_push_notification(
@@ -50,7 +50,6 @@ def send_push_notification(
     sent_count = 0
 
     for device in devices:
-
         print("================================")
         print(f"Device Session ID: {device.id}")
         print(f"Token: {device.fcm_token}")
