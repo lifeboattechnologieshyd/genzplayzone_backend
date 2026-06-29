@@ -166,20 +166,27 @@ class CourtAvailabilityApi(APIView):
 
     def slot_status(self, booking_date, slot, booked):
         status = Booking.SLOT_STATUS_AVAILABLE
+        today = timezone.localdate()
+        now = timezone.localtime()
+        print(now)
+        print(slot["start_time"])
         if (slot["start_time"],slot["end_time"]) in booked:
             status = Booking.SLOT_STATUS_BOOKED
         else:
-            today = timezone.localdate()
             if booking_date < today:
                 status = Booking.SLOT_STATUS_PAST
             elif booking_date == today:
-                booking_datetime = timezone.make_aware(
-                    datetime.combine(
-                        booking_date,
-                        slot["start_time"]
-                    )
+                print("date is today so comparing times")
+                slot_datetime = datetime.combine(
+                    booking_date,
+                    slot["start_time"]
                 )
-                if booking_datetime <= timezone.localtime() + timedelta(minutes=15):
+                now_datetime = now.replace(
+                    tzinfo=None
+                )
+                print(now_datetime)
+                print(slot_datetime)
+                if slot_datetime <= now_datetime + timedelta(minutes=15):
                     status = Booking.SLOT_STATUS_PAST
         return status
 
