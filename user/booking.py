@@ -162,6 +162,27 @@ from django.utils import timezone
 
 class CourtAvailabilityApi(APIView):
     permission_classes = [IsAuthenticated]
+
+
+    def slot_status(self, booking_date, slot, booked):
+        status = Booking.SLOT_STATUS_AVAILABLE
+        if (slot["start_time"],slot["end_time"]) in booked:
+            status = Booking.SLOT_STATUS_BOOKED
+        else:
+            today = timezone.localdate()
+            if booking_date < today:
+                status = Booking.SLOT_STATUS_PAST
+            elif booking_date == today:
+                booking_datetime = timezone.make_aware(
+                    datetime.combine(
+                        booking_date,
+                        slot["start_time"]
+                    )
+                )
+                if booking_datetime <= timezone.localtime() + timedelta(minutes=15):
+                    status = Booking.SLOT_STATUS_PAST
+        return status
+
     def get(self, request):
         court_id = request.GET.get("court_id")
         booking_date = request.GET.get("booking_date")
@@ -237,28 +258,14 @@ class CourtAvailabilityApi(APIView):
                     slot["end_time"]
                 ) not in booked
                 # Default
+                status = self.slot_status(booking_date, slot, booked)
 
-                is_past = False
-                # Only today's bookings need past validation
-                if booking_date == timezone.localtime().date():
-                    slot_start_datetime = timezone.make_aware(
-                        datetime.combine(
-                            booking_date,
-                            slot["start_time"]
-                        )
-                    )
-                    # 15 minute booking buffer
-                    if slot_start_datetime <= timezone.localtime() + timedelta(minutes=15):
-                        is_past = True
-                        available = False
-                else:
-                    is_past = True
                 slots.append({
                     "start_time": slot["start_time"].strftime("%H:%M"),
                     "end_time": slot["end_time"].strftime("%H:%M"),
                     "price": slot["price"],
                     "available": available,
-                    "is_past": is_past
+                    "status": status
                 })
 
         return CustomResponse().successResponse(
