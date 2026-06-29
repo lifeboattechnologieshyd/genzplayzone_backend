@@ -86,6 +86,73 @@ class BookingsApi(APIView):
                 description=str(e)
             )
 
+    def get(self, request):
+        booking_type = request.GET.get("type")
+        bookings = Booking.objects.filter(
+            user=request.user,
+            is_active=True
+        ).select_related(
+            "court",
+            "court__venue"
+        ).prefetch_related(
+            "slots"
+        )
+        today = timezone.localdate()
+        if booking_type == "UPCOMING":
+            bookings = bookings.filter(
+                booking_date__gte=today,
+                booking_status__in=[
+                    Booking.STATUS_PENDING_PAYMENT,
+                    Booking.STATUS_CONFIRMED
+                ]
+            )
+        elif booking_type == "COMPLETED":
+            bookings = bookings.filter(
+                booking_status=Booking.STATUS_COMPLETED
+            )
+        elif booking_type == "CANCELLED":
+            bookings = bookings.filter(
+                booking_status=Booking.STATUS_CANCELLED
+            )
+        bookings = bookings.order_by(
+            "-booking_date",
+            "-created_at"
+        )
+        data = []
+        for booking in bookings:
+            slots = []
+            for slot in booking.slots.all():
+                slots.append({
+                    "start_time": slot.start_time.strftime("%H:%M"),
+                    "end_time": slot.end_time.strftime("%H:%M")
+                })
+            data.append({
+                "id": str(booking.id),
+                "booking_number": booking.booking_number,
+                "booking_date": booking.booking_date,
+                "court": {
+                    "id": str(booking.court.id),
+                    "name": booking.court.name,
+                    "cover_image": booking.court.cover_image
+                },
+                "venue": {
+                    "id": str(booking.court.venue.id),
+                    "name": booking.court.venue.name,
+                    "address": booking.court.venue.address
+                },
+                "slots": slots,
+                "total_amount": booking.total_amount,
+                "booking_status": booking.booking_status,
+                "payment_status": booking.payment_status
+            })
+
+        return CustomResponse().successResponse(
+            data={
+                "bookings": data
+            },
+            description="Bookings fetched successfully"
+        )
+
 
 from datetime import datetime
 
