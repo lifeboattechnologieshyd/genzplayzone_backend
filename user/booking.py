@@ -251,6 +251,8 @@ class CourtAvailabilityApi(APIView):
                     if slot_start_datetime <= timezone.localtime() + timedelta(minutes=15):
                         is_past = True
                         available = False
+                else:
+                    is_past = True
                 slots.append({
                     "start_time": slot["start_time"].strftime("%H:%M"),
                     "end_time": slot["end_time"].strftime("%H:%M"),
