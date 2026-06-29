@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
@@ -169,11 +169,27 @@ class CourtAvailabilityApi(APIView):
                     slot["start_time"],
                     slot["end_time"]
                 ) not in booked
+                # Default
+
+                is_past = False
+                # Only today's bookings need past validation
+                if booking_date == timezone.localtime().date():
+                    slot_start_datetime = timezone.make_aware(
+                        datetime.combine(
+                            booking_date,
+                            slot["start_time"]
+                        )
+                    )
+                    # 15 minute booking buffer
+                    if slot_start_datetime <= timezone.localtime() + timedelta(minutes=15):
+                        is_past = True
+                        available = False
                 slots.append({
                     "start_time": slot["start_time"].strftime("%H:%M"),
                     "end_time": slot["end_time"].strftime("%H:%M"),
                     "price": slot["price"],
-                    "available": available
+                    "available": available,
+                    "is_past": is_past
                 })
 
         return CustomResponse().successResponse(
