@@ -62,7 +62,8 @@ class BookingsApi(APIView):
                 user=request.user,
                 court=court,
                 booking_date=booking_date,
-                total_amount=total_amount
+                total_amount=total_amount,
+                booking_status=Booking.STATUS_CONFIRMED,
             )
             for slot in slot_prices:
                 BookingSlot.objects.create(
