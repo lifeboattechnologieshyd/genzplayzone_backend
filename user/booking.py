@@ -74,6 +74,8 @@ class BookingsApi(APIView):
                 "state": response.state,
                 "expire_at": response.expire_at,
             }
+            print("Payment Initiate call =====")
+            print(res)
             for slot in slot_prices:
                 BookingSlot.objects.create(
                     booking=booking,
