@@ -42,6 +42,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 ##############################################
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
+USE_I18N = True
 USE_TZ = True
 
 
@@ -266,6 +267,12 @@ DJANGO_STRUCTLOG_USER_ID_FIELD = "id"
 DEBUG = False
 
 FIREBASE_CREDENTIALS = os.environ.get("FIREBASE_CREDENTIALS")
+from phonepe.sdk.pg.env import Env
 
+
+PHONE_PE_CLIENT_ID=os.environ.get("PHONE_PE_CLIENT_ID")
+PHONE_PE_CLIENT_SECRETE=os.environ.get("PHONE_PE_CLIENT_SECRET")
+PHONE_PE_CLIENT_VERSION="1.0"
+PHONE_PE_ENV=Env.SANDBOX
 
 

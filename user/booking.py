@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from db.models import Court, Booking, BookingSlot, CourtPricing
+from shared.clients.phonepe import phone_pe_initate
 from shared.utils import CustomResponse, check_slot_availability, calculate_booking_amount, generate_booking_number, \
     validate_booking_datetime, generate_slots
 
@@ -65,6 +66,14 @@ class BookingsApi(APIView):
                 total_amount=total_amount,
                 booking_status=Booking.STATUS_CONFIRMED,
             )
+            #todo :
+            response = phone_pe_initate(booking.id)
+            res = {
+                "token": response.token,
+                "order_id": response.order_id,
+                "state": response.state,
+                "expire_at": response.expire_at,
+            }
             for slot in slot_prices:
                 BookingSlot.objects.create(
                     booking=booking,
@@ -76,7 +85,8 @@ class BookingsApi(APIView):
                 data={
                     "booking_id": str(booking.id),
                     "booking_number": booking.booking_number,
-                    "total_amount": booking.total_amount
+                    "total_amount": booking.total_amount,
+                    **res
                 },
                 description="Booking created successfully"
             )

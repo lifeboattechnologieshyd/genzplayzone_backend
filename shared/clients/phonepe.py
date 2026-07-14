@@ -1,0 +1,40 @@
+from uuid import uuid4
+
+from django.conf import settings
+import phonepe
+from phonepe.sdk.pg.common.models.request.meta_info import MetaInfo
+from phonepe.sdk.pg.payments.v2.models.request.create_sdk_order_request import CreateSdkOrderRequest
+from phonepe.sdk.pg.payments.v2.models.request.standard_checkout_pay_request import StandardCheckoutPayRequest
+from phonepe.sdk.pg.payments.v2.standard_checkout_client import StandardCheckoutClient
+
+client_secret = settings.PHONE_PE_CLIENT_SECRETE
+client_id = settings.PHONE_PE_CLIENT_ID
+client_version = settings.PHONE_PE_CLIENT_VERSION
+env = settings.PHONE_PE_ENV
+should_publish_events = False
+
+def get_phonepe_client():
+    client = StandardCheckoutClient.get_instance(client_id=client_id,
+                                                 client_secret=client_secret,
+                                                 client_version=client_version,
+                                                 env=env,
+                                                 should_publish_events=should_publish_events)
+    return client
+
+
+def phone_pe_initate(order_id):
+    client = get_phonepe_client()
+    unique_order_id = str(order_id)
+    amount = 100
+    meta_info = MetaInfo(udf1="onboarding")
+    sdk_order_request = CreateSdkOrderRequest.build_standard_checkout_request(
+        merchant_order_id=unique_order_id,
+        amount=amount,
+        meta_info=meta_info,
+        disable_payment_retry=True)
+    create_order_response = client.create_sdk_order(sdk_order_request=sdk_order_request)
+    return create_order_response
+
+
+
+

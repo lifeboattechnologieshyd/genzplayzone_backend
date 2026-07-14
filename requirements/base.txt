@@ -34,7 +34,7 @@ psycopg[binary]>=3.2,<4.0
 django-health-check==3.18.*
 
 # Utilities
-requests>=2.32.0
+requests==2.31.0
 # firebase
 firebase-admin==6.9.0
 # crum
@@ -46,3 +46,6 @@ opentelemetry-sdk==1.31.*
 opentelemetry-exporter-otlp==1.31.*
 opentelemetry-instrumentation-django==0.52b1
 opentelemetry-instrumentation-requests==0.52b1
+
+# phone pe
+phonepe-pg-sdk-python==2.3.0
