@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .booking import BookingsApi, CourtAvailabilityApi
+from .booking import BookingsApi, CourtAvailabilityApi, PhonePeCallBack
 from .courts import CourtsApi, CourtPricingApi
 from .sports import SportsApi
 from .support import CreateSupportTicketAPIView, SupportTicketDetailAPIView, SendSupportMessageAPIView, \
@@ -21,6 +21,7 @@ urlpatterns = [
 
 
     path("booking", BookingsApi.as_view()),
+    path("phonepe/callback", PhonePeCallBack.as_view()),
 
 
     path("support/tickets",CreateSupportTicketAPIView.as_view()),

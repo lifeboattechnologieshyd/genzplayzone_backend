@@ -118,3 +118,83 @@ class BookingSlot(AuditModel):
 
     def __str__(self):
         return f"{self.booking} - {self.start_time} - {self.end_time}"
+
+
+class BookingQRCode(AuditModel):
+    booking = models.OneToOneField(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name="qr_code"
+    )
+    token = models.CharField(max_length=128, unique=True)
+    is_used = models.BooleanField(default=False)
+    generated_at = models.DateTimeField(auto_now_add=True)
+    scanned_at = models.DateTimeField(null=True, blank=True)
+    scanned_by = models.ForeignKey(
+        UserMaster,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
+
+    class Meta:
+        db_table = "booking_qrcode"
+
+    def __str__(self):
+        return f"{self.token}"
+
+
+import uuid
+
+class BookingPayment(AuditModel):
+
+    STATUS_PENDING = "PENDING"
+    STATUS_SUCCESS = "SUCCESS"
+    STATUS_FAILED = "FAILED"
+    STATUS_CANCELLED = "CANCELLED"
+    STATUS_EXPIRED = "EXPIRED"
+
+    STATUS_CHOICES = (
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SUCCESS, "Success"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_CANCELLED, "Cancelled"),
+        (STATUS_EXPIRED, "Expired"),
+    )
+    booking = models.OneToOneField(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name="payment"
+    )
+    payment_gateway = models.CharField(
+        max_length=50,
+        default="PHONEPE"
+    )
+    order_id = models.CharField(
+        max_length=100,
+        unique=True
+    )
+    transaction_id = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING
+    )
+    raw_response = models.JSONField(
+        blank=True,
+        null=True
+    )
+    paid_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
+    def __str__(self):
+        return self.order_id

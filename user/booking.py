@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
 
+from django.contrib.messages import success
 from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from db.models import Court, Booking, BookingSlot, CourtPricing
+from db.models import Court, Booking, BookingSlot, CourtPricing, BookingPayment
 from shared.clients.phonepe import phone_pe_initate
 from shared.utils import CustomResponse, check_slot_availability, calculate_booking_amount, generate_booking_number, \
     validate_booking_datetime, generate_slots
@@ -64,8 +65,15 @@ class BookingsApi(APIView):
                 court=court,
                 booking_date=booking_date,
                 total_amount=total_amount,
-                booking_status=Booking.STATUS_CONFIRMED,
+                booking_status=Booking.STATUS_PENDING_PAYMENT,
             )
+            for slot in slot_prices:
+                BookingSlot.objects.create(
+                    booking=booking,
+                    start_time=slot["start_time"],
+                    end_time=slot["end_time"],
+                    price=slot["price"]
+                )
             #todo :
             response = phone_pe_initate(booking.id)
             res = {
@@ -74,15 +82,18 @@ class BookingsApi(APIView):
                 "state": response.state,
                 "expire_at": response.expire_at,
             }
+
             print("Payment Initiate call =====")
             print(res)
-            for slot in slot_prices:
-                BookingSlot.objects.create(
-                    booking=booking,
-                    start_time=slot["start_time"],
-                    end_time=slot["end_time"],
-                    price=slot["price"]
-                )
+            BookingPayment.objects.create(
+                booking=booking,
+                payment_gateway="PHONEPE",
+                order_id=response.order_id,
+                amount=booking.total_amount,
+                status=BookingPayment.STATUS_PENDING,
+                raw_response=response.__dict__
+            )
+
             return CustomResponse().successResponse(
                 data={
                     "booking_id": str(booking.id),
@@ -164,6 +175,12 @@ class BookingsApi(APIView):
             },
             description="Bookings fetched successfully"
         )
+
+class PhonePeCallBack(APIView):
+    def post(self, request):
+        print("phone pe webhook configured")
+        print(request.data)
+        return CustomResponse().successResponse(data={}, description="Success")
 
 
 from datetime import datetime
