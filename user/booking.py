@@ -229,7 +229,7 @@ class PaymentResult(APIView):
                 txn = completed_payments[0]
                 payment.transaction_id = txn.transaction_id
                 payment.paid_at = timezone.now()
-                payment.raw_response = response.__dict__
+                # payment.raw_response = response.__dict__
                 payment.save()
             # TODO
             # generate_booking_qr(booking)
