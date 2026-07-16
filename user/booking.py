@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from db.models import Court, Booking, BookingSlot, CourtPricing, BookingPayment
-from shared.clients.phonepe import phone_pe_initate
+from shared.clients.phonepe import phone_pe_initate, check_order_status
 from shared.utils import CustomResponse, check_slot_availability, calculate_booking_amount, generate_booking_number, \
     validate_booking_datetime, generate_slots
 
@@ -82,7 +82,6 @@ class BookingsApi(APIView):
                 "state": response.state,
                 "expire_at": response.expire_at,
             }
-
             print("Payment Initiate call =====")
             print(res)
             BookingPayment.objects.create(
@@ -175,6 +174,96 @@ class BookingsApi(APIView):
             },
             description="Bookings fetched successfully"
         )
+class PaymentResult(APIView):
+
+    @transaction.atomic
+    def post(self, request):
+        print("phone pe result api")
+        print(request.data)
+        booking_id = request.data.get("booking_id")
+        if not booking_id:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Booking id is required"
+            )
+        try:
+            booking = Booking.objects.select_for_update().get(
+                id=booking_id,
+                user=request.user
+            )
+        except Booking.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Booking not found"
+            )
+        if booking.booking_status == Booking.STATUS_CONFIRMED:
+            return CustomResponse().successResponse(
+                data={
+                    "booking_status": booking.booking_status,
+                    "payment_status": booking.payment_status
+                },
+                description="Payment already verified"
+            )
+        try:
+            response = check_order_status(booking.id)
+        except Exception as e:
+            return CustomResponse().errorResponse(
+                data={},
+                description=str(e)
+            )
+        payment = BookingPayment.objects.filter(
+            booking=booking
+        ).first()
+        if response.state == "COMPLETED":
+            booking.booking_status = Booking.STATUS_CONFIRMED
+            booking.payment_status = Booking.PAYMENT_SUCCESS
+            booking.save()
+            if payment:
+                payment.status = BookingPayment.STATUS_SUCCESS
+                payment.transaction_id = response.transaction_id
+                payment.paid_at = timezone.now()
+                payment.raw_response = response.__dict__
+                payment.save()
+            # TODO
+            # generate_booking_qr(booking)
+            # send_push_notification()
+            # send_whatsapp()
+            # send_email()
+            return CustomResponse().successResponse(
+                data={
+                    "booking_status": booking.booking_status,
+                    "payment_status": booking.payment_status
+                },
+                description="Payment successful"
+            )
+        elif response.state == "FAILED":
+
+            booking.booking_status = Booking.STATUS_CANCELLED
+            booking.payment_status = Booking.PAYMENT_FAILED
+            booking.save()
+
+            if payment:
+                payment.status = BookingPayment.STATUS_FAILED
+                payment.raw_response = response.__dict__
+                payment.save()
+
+            return CustomResponse().errorResponse(
+                data={
+                    "booking_status": booking.booking_status,
+                    "payment_status": booking.payment_status
+                },
+                description="Payment failed"
+            )
+        else:
+            return CustomResponse().successResponse(
+                data={
+                    "booking_status": booking.booking_status,
+                    "payment_status": booking.payment_status,
+                    "state": response.state
+                },
+                description="Payment is pending"
+            )
+
 
 class PhonePeCallBack(APIView):
     def post(self, request):

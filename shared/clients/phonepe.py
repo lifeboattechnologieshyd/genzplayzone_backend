@@ -36,5 +36,10 @@ def phone_pe_initate(order_id):
     return create_order_response
 
 
+def check_order_status(m_order_id):
+    client = get_phonepe_client()
+    merchant_order_id = m_order_id
+    response = client.get_order_status(merchant_order_id, details=False)
+    return response
 
 
