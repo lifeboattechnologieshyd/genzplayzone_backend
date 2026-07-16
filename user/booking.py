@@ -220,7 +220,14 @@ class PaymentResult(APIView):
             booking.save()
             if payment:
                 payment.status = BookingPayment.STATUS_SUCCESS
-                payment.transaction_id = response.transaction_id
+                txns = response.paymentDetails
+                completed_payments = [
+                    payment
+                    for payment in txns
+                    if payment.state == "COMPLETED"
+                ]
+                txn = completed_payments[0]
+                payment.transaction_id = txn.transaction_id
                 payment.paid_at = timezone.now()
                 payment.raw_response = response.__dict__
                 payment.save()
