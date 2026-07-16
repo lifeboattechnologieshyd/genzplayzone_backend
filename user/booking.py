@@ -220,7 +220,7 @@ class PaymentResult(APIView):
             booking.save()
             if payment:
                 payment.status = BookingPayment.STATUS_SUCCESS
-                txns = response.paymentDetails
+                txns = response.payment_details
                 completed_payments = [
                     payment
                     for payment in txns
