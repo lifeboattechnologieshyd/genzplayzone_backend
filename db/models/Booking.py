@@ -35,6 +35,11 @@ class Booking(AuditModel):
         (PAYMENT_REFUNDED, "Refunded"),
     )
 
+    REFUND_NOT_APPLICABLE = "NOT_APPLICABLE"
+    REFUND_PENDING = "PENDING"
+    REFUND_SUCCESS = "SUCCESS"
+    REFUND_FAILED = "FAILED"
+
     booking_number = models.CharField(
         max_length=20,
         unique=True
@@ -88,6 +93,25 @@ class Booking(AuditModel):
     is_active = models.BooleanField(
         default=True
     )
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        UserMaster,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="cancelled_bookings"
+    )
+    cancellation_reason = models.TextField(blank=True, null=True)
+    refund_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+    refund_status = models.CharField(
+        max_length=30,
+        default=REFUND_NOT_APPLICABLE
+    )
+
     class Meta:
         db_table = "bookings"
         ordering = [
