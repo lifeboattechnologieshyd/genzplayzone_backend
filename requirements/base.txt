@@ -40,6 +40,11 @@ firebase-admin==6.9.0
 # crum
 django-crum==0.7.9
 
+# phone pe
+phonepe-pg-sdk-python==2.3.0
+
+
+
 # Observability
 opentelemetry-api==1.31.*
 opentelemetry-sdk==1.31.*
@@ -47,5 +52,3 @@ opentelemetry-exporter-otlp==1.31.*
 opentelemetry-instrumentation-django==0.52b1
 opentelemetry-instrumentation-requests==0.52b1
 
-# phone pe
-phonepe-pg-sdk-python==2.3.0
