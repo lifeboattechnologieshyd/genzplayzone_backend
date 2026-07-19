@@ -110,6 +110,8 @@ class BookingsApi(APIView):
 
     def get(self, request):
         booking_type = request.GET.get("type")
+        id = request.GET.get("id")
+        booking_number = request.GET.get("booking_number")
         bookings = Booking.objects.filter(
             user=request.user,
             is_active=True
@@ -136,6 +138,8 @@ class BookingsApi(APIView):
             bookings = bookings.filter(
                 booking_status=Booking.STATUS_CANCELLED
             )
+        if id and booking_number:
+            bookings = bookings.filter(id=id, booking_number=booking_number)
         bookings = bookings.order_by(
             "-booking_date",
             "-created_at"
@@ -174,6 +178,52 @@ class BookingsApi(APIView):
             },
             description="Bookings fetched successfully"
         )
+
+class CheckInAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user=request.user
+        booking_number = request.data.get("booking_number")
+        booking_id = request.data.get("id")
+        if not booking_number:
+            return CustomResponse().errorResponse(
+                data={}, description="Booking number is required."
+            )
+        if not booking_id:
+            return CustomResponse().errorResponse(
+                data={}, description="Booking id is required."
+            )
+
+        if 'admin' not in user.user_role:
+            return CustomResponse().errorResponse(data={}, description="You don't have permission to access this")
+        with transaction.atomic():
+            booking = Booking.objects.select_for_update().filter(id=booking_id, booking_number=booking_number).first()
+            if not booking:
+                return CustomResponse().errorResponse(data={}, description="Invalid Booking Details")
+            if booking.booking_status == Booking.STATUS_COMPLETED:
+                return CustomResponse().errorResponse(data={}, description="This Booking is already completed")
+            if booking.booking_status == Booking.STATUS_CONFIRMED:
+                booking.booking_status = Booking.STATUS_CHECKIN
+                now = timezone.now()
+                booking.remarks = (
+                    f"{booking.remarks or ''}\n"
+                    f"User checked in at {now}. Checked in by {user.mobile}."
+                )
+                booking.updated_at = now
+                booking.save()
+                # todo:
+                # send an sms.
+                return CustomResponse().successResponse(data={
+                        "booking_number": booking.booking_number,
+                        "booking_status": booking.booking_status,
+                    },
+               description="Entry Verified. Allow users to enjoy their play time.")
+            return CustomResponse().errorResponse(data={},
+                                                  description="Something wrong with booking status. Please contact tech support")
+
+
+
 class PaymentResult(APIView):
 
     @transaction.atomic
@@ -229,17 +279,18 @@ class PaymentResult(APIView):
                 txn = completed_payments[0]
                 payment.transaction_id = txn.transaction_id
                 payment.paid_at = timezone.now()
-                # payment.raw_response = response.__dict__
                 payment.save()
             # TODO
-            # generate_booking_qr(booking)
             # send_push_notification()
             # send_whatsapp()
+            # send_sms()
             # send_email()
             return CustomResponse().successResponse(
                 data={
                     "booking_status": booking.booking_status,
-                    "payment_status": booking.payment_status
+                    "payment_status": booking.payment_status,
+                    "id":booking.id,
+                    "number":booking.booking_number
                 },
                 description="Payment successful"
             )
