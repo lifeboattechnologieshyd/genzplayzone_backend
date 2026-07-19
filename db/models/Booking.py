@@ -13,12 +13,15 @@ class Booking(AuditModel):
     STATUS_CONFIRMED = "CONFIRMED"
     STATUS_CANCELLED = "CANCELLED"
     STATUS_COMPLETED = "COMPLETED"
+    STATUS_EXPIRED = "EXPIRED"
+
     STATUS_NO_SHOW = "NO_SHOW"
     BOOKING_STATUS_CHOICES = (
         (STATUS_PENDING_PAYMENT, "Pending Payment"),
         (STATUS_CONFIRMED, "Confirmed"),
         (STATUS_CANCELLED, "Cancelled"),
         (STATUS_COMPLETED, "Completed"),
+        (STATUS_EXPIRED, "Expired"),
         (STATUS_NO_SHOW, "No Show"),
     )
     PAYMENT_PENDING = "PENDING"
@@ -89,6 +92,14 @@ class Booking(AuditModel):
         db_table = "bookings"
         ordering = [
             "-created_at"
+        ]
+        indexes = [
+            models.Index(
+                fields=["court", "booking_date", "booking_status"]
+            ),
+            models.Index(
+                fields=["booking_status", "expires_at"]
+            ),
         ]
 
     def __str__(self):

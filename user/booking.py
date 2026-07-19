@@ -14,7 +14,6 @@ from shared.utils import CustomResponse, check_slot_availability, calculate_book
 class BookingsApi(APIView):
     permission_classes = [IsAuthenticated]
 
-    @transaction.atomic
     def post(self, request):
         court_id = request.data.get("court_id")
         booking_date = request.data.get("booking_date")
@@ -35,16 +34,6 @@ class BookingsApi(APIView):
                 description="Please select at least one slot"
             )
         try:
-            court = Court.objects.get(
-                id=court_id,
-                is_active=True
-            )
-        except Court.DoesNotExist:
-            return CustomResponse().errorResponse(
-                data={},
-                description="Court not found"
-            )
-        try:
             booking_date = datetime.strptime(
                 booking_date,
                 "%Y-%m-%d"
@@ -57,55 +46,75 @@ class BookingsApi(APIView):
 
         try:
             validate_booking_datetime(booking_date,slots)
-            check_slot_availability(court, booking_date,slots)
-            total_amount, slot_prices = calculate_booking_amount(court, booking_date, slots)
-            booking = Booking.objects.create(
-                booking_number=generate_booking_number(),
-                user=request.user,
-                court=court,
-                booking_date=booking_date,
-                total_amount=total_amount,
-                booking_status=Booking.STATUS_PENDING_PAYMENT,
-            )
-            for slot in slot_prices:
-                BookingSlot.objects.create(
-                    booking=booking,
-                    start_time=slot["start_time"],
-                    end_time=slot["end_time"],
-                    price=slot["price"]
+            with transaction.atomic():
+                court = Court.objects.select_for_update().get(
+                    id=court_id,
+                    is_active=True
                 )
-            #todo :
-            response = phone_pe_initate(booking.id)
-            res = {
-                "token": response.token,
-                "order_id": response.order_id,
-                "state": response.state,
-                "expire_at": response.expire_at,
-            }
-            print("Payment Initiate call =====")
-            print(res)
-            BookingPayment.objects.create(
-                booking=booking,
-                payment_gateway="PHONEPE",
-                order_id=response.order_id,
-                amount=booking.total_amount,
-                status=BookingPayment.STATUS_PENDING,
-                raw_response=response.__dict__
+                check_slot_availability(court, booking_date,slots)
+                total_amount, slot_prices = calculate_booking_amount(court, booking_date, slots)
+                booking = Booking.objects.create(
+                    booking_number=generate_booking_number(),
+                    user=request.user,
+                    court=court,
+                    booking_date=booking_date,
+                    total_amount=total_amount,
+                    booking_status=Booking.STATUS_PENDING_PAYMENT,
+                    payment_status=Booking.PAYMENT_PENDING,
+                    expires_at=timezone.now() + timedelta(minutes=10),
+                )
+                BookingSlot.objects.bulk_create([
+                    BookingSlot(
+                        booking=booking,
+                        start_time=slot["start_time"],
+                        end_time=slot["end_time"],
+                        price=slot["price"],
+                    )
+                    for slot in slot_prices
+                ])
+        except Court.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={}, description="Court not found"
             )
-
-            return CustomResponse().successResponse(
-                data={
-                    "booking_id": str(booking.id),
-                    "booking_number": booking.booking_number,
-                    "total_amount": booking.total_amount,
-                    **res
-                },
+        except Exception as exc:
+            return CustomResponse().errorResponse(
+                data={}, description=str(exc)
+            )
+        try:
+            response = phone_pe_initate(booking.id)
+            with transaction.atomic():
+                BookingPayment.objects.create(
+                    booking=booking,
+                    payment_gateway="PHONEPE",
+                    order_id=response.order_id,
+                    amount=booking.total_amount,
+                    status=BookingPayment.STATUS_PENDING,
+                    raw_response=response.__dict__
+                )
+                res = {
+                    "token": response.token,
+                    "order_id": response.order_id,
+                    "state": response.state,
+                    "expire_at": response.expire_at,
+                }
+                print("Payment Initiate call =====")
+                print(res)
+                return CustomResponse().successResponse(
+                    data={
+                        "booking_id": str(booking.id),
+                        "booking_number": booking.booking_number,
+                        "total_amount": booking.total_amount,
+                        **res
+                    },
                 description="Booking created successfully"
             )
         except Exception as e:
+            booking.payment_status = Booking.PAYMENT_FAILED
+            booking.expires_at = timezone.now()
+            booking.save(update_fields=["payment_status", "expires_at"])
             return CustomResponse().errorResponse(
                 data={},
-                description=str(e)
+                description="Unable to initiate payment. Please try again."
             )
 
     def get(self, request):
