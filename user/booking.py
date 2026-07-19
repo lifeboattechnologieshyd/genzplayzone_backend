@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.contrib.messages import success
 from django.db import transaction
@@ -6,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from db.models import Court, Booking, BookingSlot, CourtPricing, BookingPayment
-from shared.clients.phonepe import phone_pe_initate, check_order_status
+from shared.clients.phonepe import phone_pe_initate, check_order_status, refund_phonepe
 from shared.utils import CustomResponse, check_slot_availability, calculate_booking_amount, generate_booking_number, \
     validate_booking_datetime, generate_slots
 
@@ -471,3 +472,177 @@ class CourtAvailabilityApi(APIView):
             },
             description="Availability fetched successfully"
         )
+
+
+
+class CancelBookingAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        booking_id = request.data.get("booking_id")
+        reason = request.data.get("reason", "").strip()
+        user = request.user
+
+        if not booking_id:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Booking ID is required."
+            )
+
+        try:
+            with transaction.atomic():
+                booking = (
+                    Booking.objects
+                    .select_for_update()
+                    .select_related("user", "court")
+                    .filter(id=booking_id)
+                    .first()
+                )
+
+                if not booking:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="Booking not found."
+                    )
+
+                is_booking_owner = booking.user_id == user.id
+
+                if not is_booking_owner:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="You do not have permission to cancel this booking."
+                    )
+
+                if booking.booking_status == Booking.STATUS_CANCELLED:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="This booking is already cancelled."
+                    )
+
+                if booking.booking_status == Booking.STATUS_EXPIRED:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="This booking has already expired."
+                    )
+
+                if booking.booking_status in [
+                    Booking.STATUS_COMPLETED,
+                    Booking.STATUS_NO_SHOW,
+                ]:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="This booking cannot be cancelled."
+                    )
+
+                # Pending payments can be cancelled, but no refund applies.
+                if booking.booking_status == Booking.STATUS_PENDING_PAYMENT:
+                    booking.booking_status = Booking.STATUS_CANCELLED
+                    booking.cancelled_at = timezone.now()
+                    booking.cancelled_by = user
+                    booking.cancellation_reason = reason
+                    booking.refund_amount = Decimal("0.00")
+                    booking.refund_status = Booking.REFUND_NOT_APPLICABLE
+                    booking.expires_at = timezone.now()
+                    booking.save()
+
+                    return CustomResponse().successResponse(
+                        data={
+                            "booking_number": booking.booking_number,
+                            "refund_amount": "0.00",
+                            "refund_status": booking.refund_status,
+                        },
+                        description="Pending booking cancelled successfully."
+                    )
+
+                if booking.booking_status != Booking.STATUS_CONFIRMED:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="This booking cannot be cancelled."
+                    )
+
+                first_slot = (
+                    BookingSlot.objects
+                    .filter(booking=booking)
+                    .order_by("start_time")
+                    .first()
+                )
+
+                if not first_slot:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="No slots found for this booking."
+                    )
+
+                slot_start_datetime = datetime.combine(
+                    booking.booking_date,
+                    first_slot.start_time
+                )
+
+                slot_start_datetime = timezone.make_aware(
+                    slot_start_datetime,
+                    timezone.get_current_timezone()
+                )
+
+                now = timezone.now()
+
+                if now >= slot_start_datetime:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="A started booking cannot be cancelled."
+                    )
+
+                remaining_time = slot_start_datetime - now
+
+                # Exactly 6 hours or more = 80% refund.
+                if remaining_time >= timedelta(hours=6):
+                    refund_amount = (
+                        booking.total_amount * Decimal("0.80")
+                    ).quantize(
+                        Decimal("0.01"),
+                        rounding=ROUND_HALF_UP
+                    )
+                    refund_status = Booking.REFUND_PENDING
+                    description = (
+                        "Booking cancelled. Your 80% refund will be processed shortly."
+                    )
+                else:
+                    refund_amount = Decimal("0.00")
+                    refund_status = Booking.REFUND_NOT_APPLICABLE
+                    description = (
+                        "Booking cancelled. No refund is available within 6 hours "
+                        "of the slot start time."
+                    )
+
+                booking.booking_status = Booking.STATUS_CANCELLED
+                booking.cancelled_at = now
+                booking.cancelled_by = user
+                booking.cancellation_reason = reason
+                booking.refund_amount = refund_amount
+                booking.refund_status = refund_status
+                booking.remarks = (
+                    f"{booking.remarks or ''}\n"
+                    f"Cancelled at {now} by {user.mobile}. "
+                    f"Refund amount: {refund_amount}."
+                )
+                booking.save()
+            # Phone pe Refund.
+            if refund_amount > 0:
+                response = refund_phonepe(booking.id, refund_amount)
+                booking.refund_status = response.state
+                booking.save()
+            return CustomResponse().successResponse(
+                data={
+                    "booking_id": str(booking.id),
+                    "booking_number": booking.booking_number,
+                    "booking_status": booking.booking_status,
+                    "refund_amount": str(booking.refund_amount),
+                    "refund_status": booking.refund_status,
+                },
+                description=description
+            )
+
+        except Exception:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Unable to cancel booking. Please try again."
+            )

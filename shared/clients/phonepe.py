@@ -3,6 +3,7 @@ from uuid import uuid4
 from django.conf import settings
 import phonepe
 from phonepe.sdk.pg.common.models.request.meta_info import MetaInfo
+from phonepe.sdk.pg.common.models.request.refund_request import RefundRequest
 from phonepe.sdk.pg.payments.v2.models.request.create_sdk_order_request import CreateSdkOrderRequest
 from phonepe.sdk.pg.payments.v2.models.request.standard_checkout_pay_request import StandardCheckoutPayRequest
 from phonepe.sdk.pg.payments.v2.standard_checkout_client import StandardCheckoutClient
@@ -42,4 +43,14 @@ def check_order_status(m_order_id):
     response = client.get_order_status(merchant_order_id, details=False)
     return response
 
-
+def refund_phonepe(m_order_id, amount):
+    client = get_phonepe_client()
+    unique_merchant_refund_id = str(uuid4())
+    original_merchant_order_id = m_order_id
+    refund_request = RefundRequest.build_refund_request(merchant_refund_id=unique_merchant_refund_id,
+                                                        original_merchant_order_id=original_merchant_order_id,
+                                                        amount=amount)
+    refund_response = client.refund(refund_request=refund_request)
+    refund_state = refund_response.state
+    print(refund_response.__dict__)
+    return refund_state

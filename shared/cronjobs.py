@@ -19,10 +19,8 @@ def expire_pending_bookings():
             .order_by("id")
             .values_list("id", flat=True)[:500]
         )
-
         if not booking_ids:
             return 0
-
         updated_count = Booking.objects.filter(
             id__in=booking_ids,
             booking_status=Booking.STATUS_PENDING_PAYMENT,
