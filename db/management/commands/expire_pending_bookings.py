@@ -8,6 +8,11 @@ class Command(BaseCommand):
     help = "Expire pending bookings"
 
     def handle(self, *args, **options):
+
+        with open("/tmp/expire_cron_test.log", "a") as f:
+            f.write(f"Cron job executed at {timezone.now()}\n")
+
+
         print("=" * 60)
         print("Expire Pending Bookings Cron Started")
         print("=" * 60)
