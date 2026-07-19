@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "django_filters",
     "storages",
     "django_structlog",
+     "django_crontab",
     # health checks
     "health_check",  # required
     # "health_check.db",  # stock Django health checkers
@@ -276,3 +277,8 @@ PHONE_PE_CLIENT_VERSION="1.0"
 PHONE_PE_ENV=Env.SANDBOX
 
 
+CRONJOBS = [
+    (
+        "*/1 * * * *","django.core.management.call_command",["expire_pending_bookings"],
+    ),
+]
