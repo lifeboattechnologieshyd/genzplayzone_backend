@@ -306,7 +306,6 @@ class PaymentResult(APIView):
             send_sms_to_mobile(var, request.user.mobile, 12663)
             # send_push_notification()
             # send_whatsapp()
-            # send_sms()
             # send_email()
             return CustomResponse().successResponse(
                 data={

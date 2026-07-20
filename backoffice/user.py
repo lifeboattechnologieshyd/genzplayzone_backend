@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from db.models import UserMaster, OTPs
-from shared.clients.sms import send_otp_sms
+from shared.clients.sms import send_otp_sms, send_sms_to_mobile
 from shared.utils import CustomResponse
 
 
@@ -49,7 +49,8 @@ class MobileSendOTPAdminView(APIView):
             expires_at=expires_at,
             is_active=True
         )
-        send_otp_sms(mobile, otp)
+        var = f"{otp}|"
+        send_sms_to_mobile(var, mobile, 12558)
         return CustomResponse().successResponse(
             description="OTP sent successfully",
             data={
