@@ -301,7 +301,7 @@ class PaymentResult(APIView):
 
             slot_text = (
                 f"{booking.booking_date.strftime('%d %b %Y')}, "
-                f"{start_time}–{end_time}"
+                f"{start_time}-{end_time}"
             )
             username = "Player" if request.user.full_name is None else request.user.full_name
             var = f"{username}|{booking.booking_number}|{booking.court.name}|{slot_text}|"
