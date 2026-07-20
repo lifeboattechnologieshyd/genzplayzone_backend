@@ -295,13 +295,16 @@ class PaymentResult(APIView):
                 payment.save()
             # TODO
             first_slot = BookingSlot.objects.filter(booking=booking).order_by("start_time").first()
-            booking_slot_text = (
+
+            start_time = first_slot.start_time.strftime("%-I %p")
+            end_time = first_slot.end_time.strftime("%-I %p")
+
+            slot_text = (
                 f"{booking.booking_date.strftime('%d %b %Y')}, "
-                f"{first_slot.start_time.strftime('%I:%M %p')}–"
-                f"{first_slot.end_time.strftime('%I:%M %p')}"
+                f"{start_time}–{end_time}"
             )
             username = "Player" if request.user.full_name is None else request.user.full_name
-            var = f"{username}|{booking.booking_number}|{booking.court.name}|{booking_slot_text}|"
+            var = f"{username}|{booking.booking_number}|{booking.court.name}|{slot_text}|"
             print(var)
             send_sms_to_mobile(var, request.user.mobile, 12663)
             print("SMS Sent successfully")
@@ -318,7 +321,6 @@ class PaymentResult(APIView):
                 description="Payment successful"
             )
         elif response.state == "FAILED":
-
             booking.booking_status = Booking.STATUS_CANCELLED
             booking.payment_status = Booking.PAYMENT_FAILED
             booking.save()
