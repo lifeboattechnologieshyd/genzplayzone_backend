@@ -303,7 +303,9 @@ class PaymentResult(APIView):
                 f"{first_slot.end_time.strftime('%I:%M %p')}"
             )
             var = f"{request.user.full_name}|{booking.booking_number}|{booking.court.name}|{booking_slot_text}|"
+            print(var)
             send_sms_to_mobile(var, request.user.mobile, 12663)
+            print("SMS Sent successfully")
             # send_push_notification()
             # send_whatsapp()
             # send_email()

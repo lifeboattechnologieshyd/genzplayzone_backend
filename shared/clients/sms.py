@@ -44,6 +44,7 @@ def send_sms_to_mobile(var1, mobile, msg):
             params=params,
             timeout=10
         )
+        print(response)
         if response.status_code == 200:
             return True
         return False
