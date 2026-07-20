@@ -55,10 +55,8 @@ def refund_phonepe(m_order_id, amount):
     refund_request = RefundRequest.build_refund_request(merchant_refund_id=unique_merchant_refund_id,
                                                         original_merchant_order_id=original_merchant_order_id,
                                                         amount=amt)
-    print(f"refund request created {refund_request}")
     refund_response = client.refund(refund_request=refund_request)
     print(f"refund response created {refund_response}")
     refund_state = refund_response.state
-    print(refund_response.json())
     print("refund api completed from phone pe")
     return refund_state
