@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from db.models import Court, Booking, BookingSlot, CourtPricing, BookingPayment
 from shared.clients.phonepe import phone_pe_initate, check_order_status, refund_phonepe
+from shared.clients.sms import send_sms_to_mobile
 from shared.utils import CustomResponse, check_slot_availability, calculate_booking_amount, generate_booking_number, \
     validate_booking_datetime, generate_slots
 
@@ -223,7 +224,11 @@ class CheckInAPI(APIView):
                 booking.updated_at = now
                 booking.save()
                 # todo:
-                # send an sms.
+                checked_in_at = timezone.localtime(timezone.now()).strftime(
+                    "%d %b %Y, %I:%M %p"
+                )
+                vars = f"{booking.user.full_name}|{booking.booking_number}|{booking.court.name}|{checked_in_at}"
+                send_sms_to_mobile(vars, booking.user.mobile, 12662)
                 return CustomResponse().successResponse(data={
                         "booking_number": booking.booking_number,
                         "booking_status": booking.booking_status,
@@ -291,6 +296,14 @@ class PaymentResult(APIView):
                 payment.paid_at = timezone.now()
                 payment.save()
             # TODO
+            first_slot = BookingSlot.objects.filter(booking=booking).order_by("start_time").first()
+            booking_slot_text = (
+                f"{booking.booking_date.strftime('%d %b %Y')}, "
+                f"{first_slot.start_time.strftime('%I:%M %p')}–"
+                f"{first_slot.end_time.strftime('%I:%M %p')}"
+            )
+            var = f"{request.user.name}|{booking.booking_number}|{booking.court.name}|{booking_slot_text}"
+            send_sms_to_mobile(var, request.user.mobile, 12663)
             # send_push_notification()
             # send_whatsapp()
             # send_sms()
