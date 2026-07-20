@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from django.conf import settings
 import phonepe
+from marshmallow.fields import Float, Decimal
 from phonepe.sdk.pg.common.models.request.meta_info import MetaInfo
 from phonepe.sdk.pg.common.models.request.refund_request import RefundRequest
 from phonepe.sdk.pg.payments.v2.models.request.create_sdk_order_request import CreateSdkOrderRequest
@@ -47,10 +48,12 @@ def refund_phonepe(m_order_id, amount):
     client = get_phonepe_client()
     unique_merchant_refund_id = str(uuid4())
     original_merchant_order_id = m_order_id
+    amt = float(amount) * 100.00
+
     print(f"initiating phone pe refund {original_merchant_order_id}")
     refund_request = RefundRequest.build_refund_request(merchant_refund_id=unique_merchant_refund_id,
                                                         original_merchant_order_id=original_merchant_order_id,
-                                                        amount=amount)
+                                                        amount=amt)
     print(f"refund request created {refund_request}")
     refund_response = client.refund(refund_request=refund_request)
     print(f"refund response created {refund_response}")
