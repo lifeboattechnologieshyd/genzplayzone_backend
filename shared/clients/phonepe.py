@@ -49,6 +49,7 @@ def refund_phonepe(m_order_id, amount):
     unique_merchant_refund_id = str(uuid4())
     original_merchant_order_id = m_order_id
     amt = float(amount) * 100.00
+    amt = int(amt)
 
     print(f"initiating phone pe refund {original_merchant_order_id}")
     refund_request = RefundRequest.build_refund_request(merchant_refund_id=unique_merchant_refund_id,
