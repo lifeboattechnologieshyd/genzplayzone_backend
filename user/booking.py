@@ -137,7 +137,6 @@ class BookingsApi(APIView):
             bookings = bookings.filter(
                 booking_date__gte=today,
                 booking_status__in=[
-                    Booking.STATUS_PENDING_PAYMENT,
                     Booking.STATUS_CONFIRMED
                 ]
             )
@@ -182,7 +181,7 @@ class BookingsApi(APIView):
                 "booking_status": booking.booking_status,
                 "payment_status": booking.payment_status
             })
-
+        print(data)
         return CustomResponse().successResponse(
             data={
                 "bookings": data
@@ -497,7 +496,6 @@ class CancelBookingAPI(APIView):
         booking_id = request.data.get("booking_id")
         reason = request.data.get("reason", "").strip()
         user = request.user
-
         if not booking_id:
             return CustomResponse().errorResponse(
                 data={},
