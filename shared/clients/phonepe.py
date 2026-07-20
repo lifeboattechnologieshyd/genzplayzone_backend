@@ -56,7 +56,5 @@ def refund_phonepe(m_order_id, amount):
                                                         original_merchant_order_id=original_merchant_order_id,
                                                         amount=amt)
     refund_response = client.refund(refund_request=refund_request)
-    print(f"refund response created {refund_response}")
-    refund_state = refund_response.state
     print("refund api completed from phone pe")
-    return refund_state
+    return refund_response
