@@ -652,6 +652,7 @@ class CancelBookingAPI(APIView):
                 booking.save()
             # Phone pe Refund.
             if refund_amount > 0:
+                print(f"initiating phone pe refund {refund_amount}")
                 response = refund_phonepe(booking.id, refund_amount)
                 booking.refund_status = response.state
                 booking.save()
