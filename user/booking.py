@@ -302,7 +302,8 @@ class PaymentResult(APIView):
                 f"{first_slot.start_time.strftime('%I:%M %p')}–"
                 f"{first_slot.end_time.strftime('%I:%M %p')}"
             )
-            var = f"{request.user.full_name}|{booking.booking_number}|{booking.court.name}|{booking_slot_text}|"
+            username = "Player" if request.user.full_name is None else request.user.full_name
+            var = f"{username}|{booking.booking_number}|{booking.court.name}|{booking_slot_text}|"
             print(var)
             send_sms_to_mobile(var, request.user.mobile, 12663)
             print("SMS Sent successfully")
