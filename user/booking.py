@@ -521,18 +521,24 @@ class CancelBookingAPI(APIView):
                 is_booking_owner = booking.user_id == user.id
 
                 if not is_booking_owner:
+                    print(f"You do not have permission to cancel this booking. == {user.id}")
+
                     return CustomResponse().errorResponse(
                         data={},
                         description="You do not have permission to cancel this booking."
                     )
 
                 if booking.booking_status == Booking.STATUS_CANCELLED:
+                    print("This booking is already cancelled.")
+
                     return CustomResponse().errorResponse(
                         data={},
                         description="This booking is already cancelled."
                     )
 
                 if booking.booking_status == Booking.STATUS_EXPIRED:
+                    print("This booking has already expired.")
+
                     return CustomResponse().errorResponse(
                         data={},
                         description="This booking has already expired."
@@ -542,6 +548,7 @@ class CancelBookingAPI(APIView):
                     Booking.STATUS_COMPLETED,
                     Booking.STATUS_NO_SHOW,
                 ]:
+                    print("This booking cannot be cancelled. bcz its in complteted or no show")
                     return CustomResponse().errorResponse(
                         data={},
                         description="This booking cannot be cancelled."
@@ -557,6 +564,7 @@ class CancelBookingAPI(APIView):
                     booking.refund_status = Booking.REFUND_NOT_APPLICABLE
                     booking.expires_at = timezone.now()
                     booking.save()
+                    print("Pending booking cancelled successfully.")
 
                     return CustomResponse().successResponse(
                         data={
@@ -568,6 +576,8 @@ class CancelBookingAPI(APIView):
                     )
 
                 if booking.booking_status != Booking.STATUS_CONFIRMED:
+                    print(f"This booking cannot be cancelled. as its not in confirmed status=={booking.booking_status}")
+
                     return CustomResponse().errorResponse(
                         data={},
                         description="This booking cannot be cancelled."
@@ -581,6 +591,7 @@ class CancelBookingAPI(APIView):
                 )
 
                 if not first_slot:
+                    print("No slots found for this booking.")
                     return CustomResponse().errorResponse(
                         data={},
                         description="No slots found for this booking."
@@ -599,6 +610,8 @@ class CancelBookingAPI(APIView):
                 now = timezone.now()
 
                 if now >= slot_start_datetime:
+                    print("A started booking cannot be cancelled")
+
                     return CustomResponse().errorResponse(
                         data={},
                         description="A started booking cannot be cancelled."
@@ -643,6 +656,7 @@ class CancelBookingAPI(APIView):
                 response = refund_phonepe(booking.id, refund_amount)
                 booking.refund_status = response.state
                 booking.save()
+            print(description)
             return CustomResponse().successResponse(
                 data={
                     "booking_id": str(booking.id),
@@ -654,8 +668,8 @@ class CancelBookingAPI(APIView):
                 description=description
             )
 
-        except Exception:
+        except Exception as error:
             return CustomResponse().errorResponse(
                 data={},
-                description="Unable to cancel booking. Please try again."
+                description=f"Unable to cancel booking. Please try again. {error}"
             )
