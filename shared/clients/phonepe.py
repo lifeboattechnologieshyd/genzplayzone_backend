@@ -52,5 +52,6 @@ def refund_phonepe(m_order_id, amount):
                                                         amount=amount)
     refund_response = client.refund(refund_request=refund_request)
     refund_state = refund_response.state
-    print(refund_response.__dict__)
+    print(refund_response.json())
+    print("refund api completed from phone pe")
     return refund_state

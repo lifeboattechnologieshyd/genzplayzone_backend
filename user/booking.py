@@ -181,7 +181,6 @@ class BookingsApi(APIView):
                 "booking_status": booking.booking_status,
                 "payment_status": booking.payment_status
             })
-        print(data)
         return CustomResponse().successResponse(
             data={
                 "bookings": data
@@ -656,7 +655,6 @@ class CancelBookingAPI(APIView):
                 response = refund_phonepe(booking.id, refund_amount)
                 booking.refund_status = response.state
                 booking.save()
-            print(description)
             return CustomResponse().successResponse(
                 data={
                     "booking_id": str(booking.id),
