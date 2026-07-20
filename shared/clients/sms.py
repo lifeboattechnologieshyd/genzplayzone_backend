@@ -30,20 +30,39 @@ def send_otp_sms(mobile, otp):
 def send_sms_to_mobile(var1, mobile, msg):
     try:
         url = "https://sms.lifeboattechnologies.com/dev/bulkV2"
-        params = {
-            "authorization": "CfnZkoK6sueIEU9GwL3BbiXgD8xluNQ0HlRTPrbzpSmVJ152O7tyWbQfSXVBO94Nra0DhHx6YkosTEzu",
+        payload = {
+            "variables_values": var1,
             "route": "dlt",
-            "sender_id": "GENZPL",
             "message": msg,
-            "variables_values": f"{var1}",
-            "flash": "0",
-            "numbers": str(mobile)
+            "numbers": mobile,
+            "sender_id": "GENZPL"
         }
-        response = requests.get(
-            url,
-            params=params,
-            timeout=10
-        )
+        headers = {
+            "accept": "application/json",
+            "Authorization": "CfnZkoK6sueIEU9GwL3BbiXgD8xluNQ0HlRTPrbzpSmVJ152O7tyWbQfSXVBO94Nra0DhHx6YkosTEzu",
+            "content-type": "application/json"
+        }
+
+        response = requests.post(url, json=payload, headers=headers)
+
+        print(response.text)
+
+        # url2 = "https://sms.lifeboattechnologies.com/dev/bulkV2?sender_id=GENZPL&message=12663&variables_values=Ranjith%7CGPZ10000100%7CBasket%20Ball%20Court%7C23%20Jul%202026%2C%208PM-9PM&route=dlt&numbers=9014083090"
+        # url = "https://sms.lifeboattechnologies.com/dev/bulkV2"
+        # params = {
+        #     "authorization": "CfnZkoK6sueIEU9GwL3BbiXgD8xluNQ0HlRTPrbzpSmVJ152O7tyWbQfSXVBO94Nra0DhHx6YkosTEzu",
+        #     "route": "dlt",
+        #     "sender_id": "GENZPL",
+        #     "message": msg,
+        #     "variables_values": var1,
+        #     "flash": "0",
+        #     "numbers": str(mobile)
+        # }
+        # response = requests.get(
+        #     url,
+        #     params=params,
+        #     timeout=10
+        # )
         print(response.json())
         if response.status_code == 200:
             return True
