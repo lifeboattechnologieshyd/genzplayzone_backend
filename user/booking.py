@@ -213,7 +213,7 @@ class CheckInAPI(APIView):
             if booking.booking_status == Booking.STATUS_COMPLETED:
                 return CustomResponse().errorResponse(data={}, description="This Booking is already completed")
             if booking.booking_status == Booking.STATUS_CONFIRMED:
-                booking.booking_status = Booking.STATUS_CHECKIN
+                booking.booking_status = Booking.STATUS_COMPLETED
                 now = timezone.now()
                 booking.remarks = (
                     f"{booking.remarks or ''}\n"
