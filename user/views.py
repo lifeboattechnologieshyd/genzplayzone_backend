@@ -12,7 +12,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from db.models.user import OTPs, UserMaster, Devices, Banner
 from shared.clients.s3 import add_unique_suffix_to_filename, sanitize_filename
-from shared.clients.sms import send_otp_sms
+from shared.clients.sms import send_otp_sms, send_sms_to_mobile
 from shared.utils import CustomResponse, getReferralCode
 
 class SendOtp(APIView):
@@ -37,7 +37,6 @@ class SendOtp(APIView):
         otp = str(random.randint(1000, 9999))
         if mobile == '9014083090':
             otp = "1234"
-        # otp = "1234"
         OTPs.objects.filter(
             mobile_number=mobile,
             is_active=True
@@ -50,7 +49,8 @@ class SendOtp(APIView):
             expires_at=timezone.now() + timedelta(minutes=5),
             is_active=True
         )
-        send_otp_sms(mobile, otp)
+        var = f"{otp}|"
+        send_sms_to_mobile(var, mobile, 12558)
         print(f"OTP for {mobile} : {otp}")
         return CustomResponse().successResponse(
             data={},
