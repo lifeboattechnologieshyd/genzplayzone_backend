@@ -33,7 +33,7 @@ class MobileSendOTPAdminView(APIView):
         #  Check role
         roles = user.user_role or []
 
-        if "ADMIN" not in roles:
+        if "admin" not in roles:
             return CustomResponse().errorResponse(
                 description="Access denied. Not an admin"
             )
