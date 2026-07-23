@@ -280,5 +280,6 @@ PHONE_PE_ENV=Env.SANDBOX
 CRONJOBS = [
     (
         "*/1 * * * *","django.core.management.call_command",["expire_pending_bookings"],
+        # "1 * * * *","django.core.management.call_command",["expire_pending_bookings"],
     ),
 ]
