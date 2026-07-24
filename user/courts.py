@@ -1,9 +1,10 @@
 from datetime import datetime
 
+from django.db.models import Count, Q
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from db.models import Court, CourtMedia, CourtPricing
+from db.models import Court, CourtMedia, CourtPricing, Booking
 from shared.utils import CustomResponse
 
 
@@ -23,7 +24,19 @@ class CourtsApi(APIView):
             "media",
             "court_sports__sport",
             "venue__amenities__amenity"
+        ) .annotate(
+        bookings_count=Count(
+            "bookings",
+            filter=Q(
+                bookings__booking_status__in=[
+                    Booking.STATUS_CONFIRMED,
+                    Booking.STATUS_COMPLETED,
+                    Booking.STATUS_NO_SHOW,
+                ]
+            ),
+            distinct=True
         )
+    )
         if venue_id:
             courts = courts.filter(
                 venue_id=venue_id
@@ -63,6 +76,7 @@ class CourtsApi(APIView):
             data.append({
                 "id": str(court.id),
                 "name": court.name,
+                "bookings_count": court.bookings_count,
                 "description": court.description,
                 "cover_image": court.cover_image,
                 "venue": {
