@@ -259,3 +259,4 @@ class ProfileApi(APIView):
             },
             description="Profile updated successfully"
         )
+
