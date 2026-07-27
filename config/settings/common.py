@@ -19,7 +19,7 @@ SECRET_KEY = os.getenv(
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+
 
 #################################
 #       PROJECT ROOT DIR        #
@@ -280,6 +280,10 @@ PHONE_PE_ENV=Env.SANDBOX
 CRONJOBS = [
     (
         "*/1 * * * *","django.core.management.call_command",["expire_pending_bookings"],
-        # "0 * * * *","django.core.management.call_command",["expire_pending_bookings"],
+
+
+        "0 */1 * * *","django.core.management.call_command",["mark_no_show_bookings"],
+
+        
     ),
 ]

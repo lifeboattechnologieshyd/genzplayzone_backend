@@ -14,7 +14,7 @@ services:
       PGSSLMODE: ${PGSSLMODE:-disable}
 
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5436}:5432"
 
     volumes:
       - pg_data:/var/lib/postgresql/data
