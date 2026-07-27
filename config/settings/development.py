@@ -16,3 +16,10 @@ if ENABLE_SILK:
     MIDDLEWARE += ["silk.middleware.SilkyMiddleware"]
 
 
+ALLOWED_HOSTS = [
+    ".genzplayzone.com",
+    "genzplaying.com",
+    ".genzplaying.com",
+    "127.0.0.1",
+    "localhost",
+]
