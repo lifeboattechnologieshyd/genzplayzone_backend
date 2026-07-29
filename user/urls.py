@@ -2,6 +2,7 @@ from django.urls import path
 
 from .booking import BookingsApi, CourtAvailabilityApi, PhonePeCallBack, PaymentResult, CheckInAPI, CancelBookingAPI
 from .courts import CourtsApi, CourtPricingApi
+from .promocode import PromoCodeAPI
 from .sports import SportsApi
 from .support import CreateSupportTicketAPIView, SupportTicketDetailAPIView, SendSupportMessageAPIView, \
     SubmitSupportTicketRatingAPIView
@@ -18,6 +19,7 @@ urlpatterns = [
     path("banners",BannersApi.as_view()),
     path("courts",CourtsApi.as_view()),
     path("pricing",CourtAvailabilityApi.as_view()),
+    path("promo-codes",PromoCodeAPI.as_view()),
 
     path("booking", BookingsApi.as_view()),
     path("phonepe/callback", PhonePeCallBack.as_view()),
