@@ -1,6 +1,8 @@
 import random
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
+from django.utils.dateparse import parse_datetime
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
@@ -193,3 +195,42 @@ def generate_slots(pricing, slot_duration):
         })
         current = next_slot
     return slots
+
+
+def parse_promo_datetime(value, field_name):
+    value = parse_datetime(value)
+
+    if not value:
+        raise Exception(f"Invalid {field_name}.")
+
+    if timezone.is_naive(value):
+        value = timezone.make_aware(value)
+
+    return value
+
+
+def parse_decimal(value, field_name, allow_zero=False):
+    try:
+        value = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        raise Exception(f"Invalid {field_name}.")
+
+    if value < 0 or (value == 0 and not allow_zero):
+        raise Exception(f"{field_name} must be greater than zero.")
+
+    return value
+
+def get_promo_data(promo_code):
+    return {
+        "id": str(promo_code.id),
+        "code": promo_code.code,
+        "discount_amount": str(promo_code.discount_amount),
+        "minimum_booking_amount": str(
+            promo_code.minimum_booking_amount
+        ),
+        "valid_from": promo_code.valid_from,
+        "valid_until": promo_code.valid_until,
+        "total_usage_limit": promo_code.total_usage_limit,
+        "per_user_usage_limit": promo_code.per_user_usage_limit,
+        "is_active": promo_code.is_active,
+    }
