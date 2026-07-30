@@ -7,11 +7,11 @@ from shared.utils import CustomResponse, parse_decimal, parse_promo_datetime, ge
 class PromocodeApi(APIView):
 
     def post(self, request):
-        if request.user.user_role != "admin":
-            return CustomResponse().errorResponse(
-                data={},
-                description="You don't have permission to access this."
-            )
+        # if request.user.user_role != "admin":
+        #     return CustomResponse().errorResponse(
+        #         data={},
+        #         description="You don't have permission to access this."
+        #     )
         try:
             code = request.data.get("code", "").strip().upper()
             if not code:
