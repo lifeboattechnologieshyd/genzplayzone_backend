@@ -8,6 +8,7 @@ from rest_framework import status
 from django.utils import timezone
 
 from db.models import CourtPricing, Booking, BookingSlot
+from db.models.promocode import PromoCode
 
 
 def getReferralCode():
@@ -234,3 +235,70 @@ def get_promo_data(promo_code):
         "per_user_usage_limit": promo_code.per_user_usage_limit,
         "is_active": promo_code.is_active,
     }
+
+
+from django.db.models import Q
+from django.utils import timezone
+
+def get_promo_preview(promo_code_value, user, subtotal_amount):
+    now = timezone.now()
+    promo_code_value = promo_code_value.strip().upper()
+
+    promo_code =  PromoCode.objects.filter(
+        code=promo_code_value,
+        is_active=True
+    ).first()
+
+    if not promo_code:
+        raise Exception("Invalid or inactive promo code.")
+
+    if promo_code.valid_from > now:
+        raise Exception("This promo code is not active yet.")
+
+    if promo_code.valid_until < now:
+        raise Exception("This promo code has expired.")
+
+    if subtotal_amount < promo_code.minimum_booking_amount:
+        raise Exception(
+            f"Minimum booking amount for this promo is "
+            f"₹{promo_code.minimum_booking_amount}."
+        )
+
+    active_usage_filter = (
+        Q(
+            booking_status__in=[
+                Booking.STATUS_CONFIRMED,
+                Booking.STATUS_COMPLETED,
+                Booking.STATUS_NO_SHOW,
+            ]
+        )
+        |
+        Q(
+            booking_status=Booking.STATUS_PENDING_PAYMENT,
+            expires_at__gt=now
+        )
+    )
+
+    promo_bookings = Booking.objects.filter(
+        promo_code=promo_code
+    ).filter(active_usage_filter)
+
+    if (
+        promo_code.total_usage_limit is not None
+        and promo_bookings.count() >= promo_code.total_usage_limit
+    ):
+        raise Exception("This promo code usage limit has been reached.")
+
+    if (
+        promo_code.per_user_usage_limit is not None
+        and promo_bookings.filter(user=user).count()
+        >= promo_code.per_user_usage_limit
+    ):
+        raise Exception(
+            "You have already used this promo code the maximum number of times."
+        )
+    discount_amount = min(
+        promo_code.discount_amount,
+        subtotal_amount
+    )
+    return promo_code, discount_amount
