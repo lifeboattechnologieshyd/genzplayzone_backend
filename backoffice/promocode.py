@@ -95,11 +95,11 @@ class PromocodeApi(APIView):
             )
 
     def get(self, request):
-        if request.user.user_role != "admin":
-            return CustomResponse().errorResponse(
-                data={},
-                description="You don't have permission to access this."
-            )
+        # if request.user.user_role != "admin":
+        #     return CustomResponse().errorResponse(
+        #         data={},
+        #         description="You don't have permission to access this."
+        #     )
         promo_codes = PromoCode.objects.all().order_by("-created_at")
         is_active = request.GET.get("is_active")
         search = request.GET.get("search")
