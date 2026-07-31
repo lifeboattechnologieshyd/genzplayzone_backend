@@ -23,7 +23,7 @@ class CourtsApi(APIView):
         name = request.data.get("name")
         description = request.data.get("description")
         cover_image = request.data.get("cover_image")
-        starting_price = request.data.get("starting_price", 800)
+        starting_price = request.data.get("starting_price", 500)
         slot_duration_minutes = request.data.get(
             "slot_duration_minutes",
             60

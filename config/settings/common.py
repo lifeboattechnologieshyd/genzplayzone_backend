@@ -274,16 +274,11 @@ from phonepe.sdk.pg.env import Env
 PHONE_PE_CLIENT_ID=os.environ.get("PHONE_PE_CLIENT_ID", "M232O4UX2AXM7_2604211147")
 PHONE_PE_CLIENT_SECRETE=os.environ.get("PHONE_PE_CLIENT_SECRET", "ZDZkZjFmOTQtOGNiMS00NjNiLThhOTMtYWEyYzcxODg5ZTZk")
 PHONE_PE_CLIENT_VERSION="1.0"
-PHONE_PE_ENV=Env.SANDBOX
-
+PHONE_PE_ENV=os.environ.get("PHONE_PE_ENV", Env.SANDBOX)
 
 CRONJOBS = [
     (
         "*/1 * * * *","django.core.management.call_command",["expire_pending_bookings"],
-
-
         "0 */1 * * *","django.core.management.call_command",["mark_no_show_bookings"],
-
-        
     ),
 ]
