@@ -18,6 +18,7 @@ from shared.utils import CustomResponse, getReferralCode
 class SendOtp(APIView):
 
     def post(self, request):
+        #sendotp
         mobile = request.data.get("mobile")
         if not mobile:
             return CustomResponse().errorResponse(
