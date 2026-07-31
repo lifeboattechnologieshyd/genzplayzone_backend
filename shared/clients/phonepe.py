@@ -21,6 +21,9 @@ def get_phonepe_client():
                                                  client_version=client_version,
                                                  env=env,
                                                  should_publish_events=should_publish_events)
+    print(client_secret)
+    print(client_id)
+    print(env)
     return client
 
 
