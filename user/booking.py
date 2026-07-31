@@ -83,7 +83,7 @@ class BookingsApi(APIView):
                 data={}, description=str(exc)
             )
         try:
-            response = phone_pe_initate(booking.id)
+            response = phone_pe_initate(booking.id,total_amount)
             with transaction.atomic():
                 BookingPayment.objects.create(
                     booking=booking,
