@@ -1,4 +1,5 @@
 from uuid import uuid4
+from decimal import Decimal
 
 from django.conf import settings
 import phonepe
@@ -36,26 +37,28 @@ def get_phonepe_client():
     )
 
     return client
-def phone_pe_initate(order_id,total_amount):
+
+
+def phone_pe_initate(order_id, total_amount):
     print("\n========== PHONEPE CREATE SDK ORDER ==========")
 
     client = get_phonepe_client()
 
     unique_order_id = str(order_id)
-    # amount = 100
+
+    amount_in_paise = int(Decimal(total_amount) * 100)
 
     print("Merchant Order ID:", unique_order_id)
-    print("Amount:", total_amount)
+    print("Amount (Rupees):", total_amount)
+    print("Amount (Paise):", amount_in_paise)
 
     meta_info = MetaInfo(
         udf1="onboarding"
     )
 
-    print("Meta Info:", meta_info)
-
     sdk_order_request = CreateSdkOrderRequest.build_standard_checkout_request(
         merchant_order_id=unique_order_id,
-        amount=total_amount,
+        amount=amount_in_paise,
         meta_info=meta_info,
         disable_payment_retry=True
     )
@@ -63,25 +66,11 @@ def phone_pe_initate(order_id,total_amount):
     print("\nSDK Order Request:")
     print(sdk_order_request)
 
-    try:
-        print("\nCalling PhonePe Create SDK Order API...")
+    create_order_response = client.create_sdk_order(
+        sdk_order_request=sdk_order_request
+    )
 
-        create_order_response = client.create_sdk_order(
-            sdk_order_request=sdk_order_request
-        )
-
-        print("\n========== PHONEPE RESPONSE ==========")
-        print(create_order_response)
-        print("======================================\n")
-
-        return create_order_response
-
-    except Exception as error:
-        print("\n========== PHONEPE EXCEPTION ==========")
-        print("Exception Type:", type(error).__name__)
-        print("Exception:", str(error))
-        print("=======================================\n")
-        raise
+    return create_order_response
 
 
 def check_order_status(m_order_id):
