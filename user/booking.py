@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -17,44 +18,92 @@ class BookingsApi(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        print("\n================ BOOKING API START ================")
+        print("User:", request.user.id)
+        print("Request Data:", request.data)
+
         court_id = request.data.get("court_id")
         booking_date = request.data.get("booking_date")
         slots = request.data.get("slots", [])
+
+        print("Court ID:", court_id)
+        print("Booking Date:", booking_date)
+        print("Slots:", slots)
+
         if not court_id:
             return CustomResponse().errorResponse(
                 data={},
                 description="Court is required"
             )
+
         if not booking_date:
             return CustomResponse().errorResponse(
                 data={},
                 description="Booking date is required"
             )
+
         if not slots:
             return CustomResponse().errorResponse(
                 data={},
                 description="Please select at least one slot"
             )
+
         try:
             booking_date = datetime.strptime(
                 booking_date,
                 "%Y-%m-%d"
             ).date()
-        except Exception:
+
+            print("Parsed Booking Date:", booking_date)
+
+        except Exception as e:
+            print("Date Parsing Error:", str(e))
             return CustomResponse().errorResponse(
                 data={},
                 description="Invalid booking date"
             )
 
         try:
-            validate_booking_datetime(booking_date,slots)
+            print("\n========== VALIDATING BOOKING ==========")
+
+            validate_booking_datetime(booking_date, slots)
+            print("Booking Date Validation Success")
+
             with transaction.atomic():
+
+                print("\nFetching Court...")
+
                 court = Court.objects.select_for_update().get(
                     id=court_id,
                     is_active=True
                 )
-                check_slot_availability(court, booking_date,slots)
-                total_amount, slot_prices = calculate_booking_amount(court, booking_date, slots)
+
+                print("Court Found:", court.id)
+
+                print("Checking Slot Availability...")
+
+                check_slot_availability(
+                    court,
+                    booking_date,
+                    slots
+                )
+
+                print("Slots Available")
+
+                print("Calculating Booking Amount...")
+
+                total_amount, slot_prices = calculate_booking_amount(
+                    court,
+                    booking_date,
+                    slots
+                )
+
+                print("Total Amount:", total_amount)
+                print("Amount Type:", type(total_amount))
+                print("Slot Prices:", slot_prices)
+
+                print("Creating Booking...")
+
                 booking = Booking.objects.create(
                     booking_number=generate_booking_number(),
                     user=request.user,
@@ -65,6 +114,13 @@ class BookingsApi(APIView):
                     payment_status=Booking.PAYMENT_PENDING,
                     expires_at=timezone.now() + timedelta(minutes=10),
                 )
+
+                print("Booking Created")
+                print("Booking ID:", booking.id)
+                print("Booking Number:", booking.booking_number)
+
+                print("Creating Booking Slots...")
+
                 BookingSlot.objects.bulk_create([
                     BookingSlot(
                         booking=booking,
@@ -74,33 +130,67 @@ class BookingsApi(APIView):
                     )
                     for slot in slot_prices
                 ])
+
+                print("Booking Slots Created")
+
         except Court.DoesNotExist:
+            print("Court Not Found")
             return CustomResponse().errorResponse(
-                data={}, description="Court not found"
+                data={},
+                description="Court not found"
             )
+
         except Exception as exc:
+            print("\n========== BOOKING CREATION ERROR ==========")
+            traceback.print_exc()
+
             return CustomResponse().errorResponse(
-                data={}, description=str(exc)
+                data={},
+                description=str(exc)
             )
+
         try:
-            response = phone_pe_initate(booking.id,total_amount)
+            print("\n========== PHONEPE PAYMENT ==========")
+            print("Booking ID:", booking.id)
+            print("Booking Total Amount:", booking.total_amount)
+            print("Passing Total Amount:", total_amount)
+
+            response = phone_pe_initate(
+                booking.id,
+                total_amount
+            )
+
+            print("\n========== PHONEPE RESPONSE ==========")
+            print(response)
+
             with transaction.atomic():
-                BookingPayment.objects.create(
+
+                print("Creating Booking Payment...")
+
+                payment = BookingPayment.objects.create(
                     booking=booking,
                     payment_gateway="PHONEPE",
                     order_id=response.order_id,
                     amount=booking.total_amount,
                     status=BookingPayment.STATUS_PENDING,
-                    raw_response=response.__dict__
+                    raw_response=response.__dict__,
                 )
+
+                print("Booking Payment Created")
+                print("Payment ID:", payment.id)
+                print("Payment Amount:", payment.amount)
+                print("Payment Status:", payment.status)
+
                 res = {
                     "token": response.token,
                     "order_id": response.order_id,
                     "state": response.state,
                     "expire_at": response.expire_at,
                 }
-                print("Payment Initiate call =====")
+
+                print("\n========== SUCCESS RESPONSE ==========")
                 print(res)
+
                 return CustomResponse().successResponse(
                     data={
                         "booking_id": str(booking.id),
@@ -108,16 +198,33 @@ class BookingsApi(APIView):
                         "total_amount": booking.total_amount,
                         **res
                     },
-                description="Booking created successfully"
-            )
+                    description="Booking created successfully"
+                )
+
         except Exception as e:
+
+            print("\n========== PHONEPE PAYMENT ERROR ==========")
+            print("Exception Type:", type(e).__name__)
+            print("Exception:", str(e))
+            traceback.print_exc()
+
             booking.payment_status = Booking.PAYMENT_FAILED
             booking.expires_at = timezone.now()
-            booking.save(update_fields=["payment_status", "expires_at"])
+
+            booking.save(
+                update_fields=[
+                    "payment_status",
+                    "expires_at"
+                ]
+            )
+
+            print("Booking Updated As Payment Failed")
+
             return CustomResponse().errorResponse(
                 data={},
-                description="Unable to initiate payment. Please try again."
+                description=str(e)
             )
+
 
     def get(self, request):
         booking_type = request.GET.get("type")
