@@ -36,16 +36,16 @@ def get_phonepe_client():
     )
 
     return client
-def phone_pe_initate(order_id):
+def phone_pe_initate(order_id,total_amount):
     print("\n========== PHONEPE CREATE SDK ORDER ==========")
 
     client = get_phonepe_client()
 
     unique_order_id = str(order_id)
-    amount = 100
+    # amount = 100
 
     print("Merchant Order ID:", unique_order_id)
-    print("Amount:", amount)
+    print("Amount:", total_amount)
 
     meta_info = MetaInfo(
         udf1="onboarding"
@@ -55,7 +55,7 @@ def phone_pe_initate(order_id):
 
     sdk_order_request = CreateSdkOrderRequest.build_standard_checkout_request(
         merchant_order_id=unique_order_id,
-        amount=amount,
+        amount=total_amount,
         meta_info=meta_info,
         disable_payment_retry=True
     )
