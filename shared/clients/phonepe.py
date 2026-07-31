@@ -16,26 +16,72 @@ env = settings.PHONE_PE_ENV
 should_publish_events = False
 
 def get_phonepe_client():
-    client = StandardCheckoutClient.get_instance(client_id=client_id,
-                                                 client_secret=client_secret,
-                                                 client_version=client_version,
-                                                 env=env,
-                                                 should_publish_events=should_publish_events)
+    print("\n========== INITIALIZING PHONEPE CLIENT ==========")
+    print("Client ID:", client_id)
+    print("Client Version:", client_version)
+    print("Environment:", env)
+    print("Publish Events:", should_publish_events)
+
+    client = StandardCheckoutClient.get_instance(
+        client_id=client_id,
+        client_secret=client_secret,
+        client_version=client_version,
+        env=env,
+        should_publish_events=should_publish_events
+    )
+
+    print("PhonePe Client Initialized Successfully")
+    print("===============================================\n")
+
     return client
 
 
 def phone_pe_initate(order_id):
+    print("\n========== PHONEPE CREATE SDK ORDER ==========")
+
     client = get_phonepe_client()
+
     unique_order_id = str(order_id)
     amount = 100
-    meta_info = MetaInfo(udf1="onboarding")
+
+    print("Merchant Order ID:", unique_order_id)
+    print("Amount:", amount)
+
+    meta_info = MetaInfo(
+        udf1="onboarding"
+    )
+
+    print("Meta Info:", meta_info)
+
     sdk_order_request = CreateSdkOrderRequest.build_standard_checkout_request(
         merchant_order_id=unique_order_id,
         amount=amount,
         meta_info=meta_info,
-        disable_payment_retry=True)
-    create_order_response = client.create_sdk_order(sdk_order_request=sdk_order_request)
-    return create_order_response
+        disable_payment_retry=True
+    )
+
+    print("\nSDK Order Request:")
+    print(sdk_order_request)
+
+    try:
+        print("\nCalling PhonePe Create SDK Order API...")
+
+        create_order_response = client.create_sdk_order(
+            sdk_order_request=sdk_order_request
+        )
+
+        print("\n========== PHONEPE RESPONSE ==========")
+        print(create_order_response)
+        print("======================================\n")
+
+        return create_order_response
+
+    except Exception as error:
+        print("\n========== PHONEPE EXCEPTION ==========")
+        print("Exception Type:", type(error).__name__)
+        print("Exception:", str(error))
+        print("=======================================\n")
+        raise
 
 
 def check_order_status(m_order_id):
