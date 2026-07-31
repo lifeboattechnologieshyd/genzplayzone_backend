@@ -18,6 +18,7 @@ should_publish_events = False
 def get_phonepe_client():
     print("\n========== INITIALIZING PHONEPE CLIENT ==========")
     print("Client ID:", client_id)
+    print("Client Secret:", client_secret)
     print("Client Version:", client_version)
     print("Environment:", env)
     print("Publish Events:", should_publish_events)
