@@ -8,35 +8,34 @@ from phonepe.sdk.pg.common.models.request.refund_request import RefundRequest
 from phonepe.sdk.pg.payments.v2.models.request.create_sdk_order_request import CreateSdkOrderRequest
 from phonepe.sdk.pg.payments.v2.models.request.standard_checkout_pay_request import StandardCheckoutPayRequest
 from phonepe.sdk.pg.payments.v2.standard_checkout_client import StandardCheckoutClient
+from phonepe.sdk.pg.env import Env
 
 client_secret = settings.PHONE_PE_CLIENT_SECRETE
 client_id = settings.PHONE_PE_CLIENT_ID
 client_version = settings.PHONE_PE_CLIENT_VERSION
-env = settings.PHONE_PE_ENV
 should_publish_events = False
 
 def get_phonepe_client():
+    if settings.PHONE_PE_ENV.upper() == "PRODUCTION":
+        phonepe_env = Env.PRODUCTION
+    else:
+        phonepe_env = Env.SANDBOX
+
     print("\n========== INITIALIZING PHONEPE CLIENT ==========")
     print("Client ID:", client_id)
-    print("Client Secret:", client_secret)
     print("Client Version:", client_version)
-    print("Environment:", env)
-    print("Publish Events:", should_publish_events)
+    print("Environment from settings:", settings.PHONE_PE_ENV)
+    print("SDK Environment:", phonepe_env)
 
     client = StandardCheckoutClient.get_instance(
         client_id=client_id,
         client_secret=client_secret,
         client_version=client_version,
-        env=env,
-        should_publish_events=should_publish_events
+        env=phonepe_env,
+        should_publish_events=should_publish_events,
     )
 
-    print("PhonePe Client Initialized Successfully")
-    print("===============================================\n")
-
     return client
-
-
 def phone_pe_initate(order_id):
     print("\n========== PHONEPE CREATE SDK ORDER ==========")
 
