@@ -1,14 +1,13 @@
-import traceback
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.contrib.messages import success
 from django.db import transaction
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 
 from db.models import Court, Booking, BookingSlot, CourtPricing, BookingPayment
-from shared.clients.phonepe import phone_pe_initate, check_order_status, refund_phonepe
+from shared.clients.phonepe import phone_pe_initate, check_order_status, refund_phonepe, get_phonepe_client
 from shared.clients.sms import send_sms_to_mobile
 from shared.utils import CustomResponse, check_slot_availability, calculate_booking_amount, generate_booking_number, \
     validate_booking_datetime, generate_slots
@@ -18,92 +17,44 @@ class BookingsApi(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        print("\n================ BOOKING API START ================")
-        print("User:", request.user.id)
-        print("Request Data:", request.data)
-
         court_id = request.data.get("court_id")
         booking_date = request.data.get("booking_date")
         slots = request.data.get("slots", [])
-
-        print("Court ID:", court_id)
-        print("Booking Date:", booking_date)
-        print("Slots:", slots)
-
         if not court_id:
             return CustomResponse().errorResponse(
                 data={},
                 description="Court is required"
             )
-
         if not booking_date:
             return CustomResponse().errorResponse(
                 data={},
                 description="Booking date is required"
             )
-
         if not slots:
             return CustomResponse().errorResponse(
                 data={},
                 description="Please select at least one slot"
             )
-
         try:
             booking_date = datetime.strptime(
                 booking_date,
                 "%Y-%m-%d"
             ).date()
-
-            print("Parsed Booking Date:", booking_date)
-
-        except Exception as e:
-            print("Date Parsing Error:", str(e))
+        except Exception:
             return CustomResponse().errorResponse(
                 data={},
                 description="Invalid booking date"
             )
 
         try:
-            print("\n========== VALIDATING BOOKING ==========")
-
-            validate_booking_datetime(booking_date, slots)
-            print("Booking Date Validation Success")
-
+            validate_booking_datetime(booking_date,slots)
             with transaction.atomic():
-
-                print("\nFetching Court...")
-
                 court = Court.objects.select_for_update().get(
                     id=court_id,
                     is_active=True
                 )
-
-                print("Court Found:", court.id)
-
-                print("Checking Slot Availability...")
-
-                check_slot_availability(
-                    court,
-                    booking_date,
-                    slots
-                )
-
-                print("Slots Available")
-
-                print("Calculating Booking Amount...")
-
-                total_amount, slot_prices = calculate_booking_amount(
-                    court,
-                    booking_date,
-                    slots
-                )
-
-                print("Total Amount:", total_amount)
-                print("Amount Type:", type(total_amount))
-                print("Slot Prices:", slot_prices)
-
-                print("Creating Booking...")
-
+                check_slot_availability(court, booking_date,slots)
+                total_amount, slot_prices = calculate_booking_amount(court, booking_date, slots)
                 booking = Booking.objects.create(
                     booking_number=generate_booking_number(),
                     user=request.user,
@@ -114,13 +65,6 @@ class BookingsApi(APIView):
                     payment_status=Booking.PAYMENT_PENDING,
                     expires_at=timezone.now() + timedelta(minutes=10),
                 )
-
-                print("Booking Created")
-                print("Booking ID:", booking.id)
-                print("Booking Number:", booking.booking_number)
-
-                print("Creating Booking Slots...")
-
                 BookingSlot.objects.bulk_create([
                     BookingSlot(
                         booking=booking,
@@ -130,67 +74,33 @@ class BookingsApi(APIView):
                     )
                     for slot in slot_prices
                 ])
-
-                print("Booking Slots Created")
-
         except Court.DoesNotExist:
-            print("Court Not Found")
             return CustomResponse().errorResponse(
-                data={},
-                description="Court not found"
+                data={}, description="Court not found"
             )
-
         except Exception as exc:
-            print("\n========== BOOKING CREATION ERROR ==========")
-            traceback.print_exc()
-
             return CustomResponse().errorResponse(
-                data={},
-                description=str(exc)
+                data={}, description=str(exc)
             )
-
         try:
-            print("\n========== PHONEPE PAYMENT ==========")
-            print("Booking ID:", booking.id)
-            print("Booking Total Amount:", booking.total_amount)
-            print("Passing Total Amount:", total_amount)
-
-            response = phone_pe_initate(
-                booking.id,
-                total_amount
-            )
-
-            print("\n========== PHONEPE RESPONSE ==========")
-            print(response)
-
+            response = phone_pe_initate(booking.id,total_amount)
             with transaction.atomic():
-
-                print("Creating Booking Payment...")
-
-                payment = BookingPayment.objects.create(
+                BookingPayment.objects.create(
                     booking=booking,
                     payment_gateway="PHONEPE",
                     order_id=response.order_id,
                     amount=booking.total_amount,
                     status=BookingPayment.STATUS_PENDING,
-                    raw_response=response.__dict__,
+                    raw_response=response.__dict__
                 )
-
-                print("Booking Payment Created")
-                print("Payment ID:", payment.id)
-                print("Payment Amount:", payment.amount)
-                print("Payment Status:", payment.status)
-
                 res = {
                     "token": response.token,
                     "order_id": response.order_id,
                     "state": response.state,
                     "expire_at": response.expire_at,
                 }
-
-                print("\n========== SUCCESS RESPONSE ==========")
+                print("Payment Initiate call =====")
                 print(res)
-
                 return CustomResponse().successResponse(
                     data={
                         "booking_id": str(booking.id),
@@ -198,33 +108,16 @@ class BookingsApi(APIView):
                         "total_amount": booking.total_amount,
                         **res
                     },
-                    description="Booking created successfully"
-                )
-
+                description="Booking created successfully"
+            )
         except Exception as e:
-
-            print("\n========== PHONEPE PAYMENT ERROR ==========")
-            print("Exception Type:", type(e).__name__)
-            print("Exception:", str(e))
-            traceback.print_exc()
-
             booking.payment_status = Booking.PAYMENT_FAILED
             booking.expires_at = timezone.now()
-
-            booking.save(
-                update_fields=[
-                    "payment_status",
-                    "expires_at"
-                ]
-            )
-
-            print("Booking Updated As Payment Failed")
-
+            booking.save(update_fields=["payment_status", "expires_at"])
             return CustomResponse().errorResponse(
                 data={},
-                description=str(e)
+                description="Unable to initiate payment. Please try again."
             )
-
 
     def get(self, request):
         booking_type = request.GET.get("type")
@@ -456,10 +349,202 @@ class PaymentResult(APIView):
 
 
 class PhonePeCallBack(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
     def post(self, request):
-        print("phone pe webhook configured")
-        print(request.data)
-        return CustomResponse().successResponse(data={}, description="Success")
+
+        print("\n========== PHONEPE WEBHOOK RECEIVED ==========")
+
+        raw_body = request.body.decode("utf-8")
+        auth_header = request.headers.get("Authorization")
+
+        print("Authorization:", auth_header)
+        print("Raw Body:", raw_body)
+
+        try:
+
+            client = get_phonepe_client()
+
+            callback = client.validate_callback(
+                username="lifeboat",
+                password="Lifeboat123",
+                callback_header_data=auth_header,
+                callback_response_data=raw_body,
+            )
+
+            print("Webhook Validation Success")
+
+        except Exception as e:
+
+            print("Webhook Validation Failed")
+            print(str(e))
+
+            return CustomResponse().successResponse(
+                data={},
+                description="Ignored"
+            )
+
+        if not callback.payload:
+            print("Validation Callback Received")
+
+            return CustomResponse().successResponse(
+                data={},
+                description="Validation Success"
+            )
+
+        payload = callback.payload
+
+        merchant_order_id = payload.merchant_order_id
+        gateway_order_id = payload.order_id
+        state = payload.state
+
+        print("Merchant Order ID:", merchant_order_id)
+        print("Gateway Order ID:", gateway_order_id)
+        print("State:", state)
+
+        booking_payment = BookingPayment.objects.select_related(
+            "booking"
+        ).filter(
+            order_id=merchant_order_id
+        ).first()
+
+        if booking_payment is None:
+            print("Booking Payment Not Found")
+
+            return CustomResponse().successResponse(
+                data={},
+                description="Booking payment not found"
+            )
+
+        if booking_payment.transaction_id and booking_payment.transaction_id != gateway_order_id:
+            print("Order ID Mismatch")
+
+            return CustomResponse().successResponse(
+                data={},
+                description="Order mismatch"
+            )
+
+        if booking_payment.status == BookingPayment.STATUS_SUCCESS:
+            print("Duplicate Webhook")
+
+            return CustomResponse().successResponse(
+                data={},
+                description="Already processed"
+            )
+
+        booking = booking_payment.booking
+
+        try:
+
+            with transaction.atomic():
+
+                booking_payment.transaction_id = gateway_order_id
+
+                if state == "COMPLETED":
+
+                    print("Payment Completed")
+
+                    booking_payment.status = BookingPayment.STATUS_SUCCESS
+                    booking_payment.paid_at = timezone.now()
+
+                    booking.payment_status = Booking.PAYMENT_SUCCESS
+                    booking.booking_status = Booking.STATUS_CONFIRMED
+
+                    booking_payment.save(
+                        update_fields=[
+                            "transaction_id",
+                            "status",
+                            "paid_at",
+                        ]
+                    )
+
+                    booking.save(
+                        update_fields=[
+                            "payment_status",
+                            "booking_status",
+                        ]
+                    )
+
+                elif state == "FAILED":
+
+                    print("Payment Failed")
+
+                    booking_payment.status = BookingPayment.STATUS_FAILED
+
+                    booking.payment_status = Booking.PAYMENT_FAILED
+
+                    booking_payment.save(
+                        update_fields=[
+                            "transaction_id",
+                            "status",
+                        ]
+                    )
+
+                    booking.save(
+                        update_fields=[
+                            "payment_status",
+                        ]
+                    )
+
+                elif state == "PENDING":
+
+                    print("Payment Pending")
+
+                    booking_payment.status = BookingPayment.STATUS_PENDING
+
+                    booking.payment_status = Booking.PAYMENT_PENDING
+
+                    booking_payment.save(
+                        update_fields=[
+                            "transaction_id",
+                            "status",
+                        ]
+                    )
+
+                    booking.save(
+                        update_fields=[
+                            "payment_status",
+                        ]
+                    )
+
+                else:
+
+                    print("Payment Cancelled")
+
+                    booking_payment.status = BookingPayment.STATUS_CANCELLED
+
+                    booking.payment_status = Booking.PAYMENT_FAILED
+
+                    booking_payment.save(
+                        update_fields=[
+                            "transaction_id",
+                            "status",
+                        ]
+                    )
+
+                    booking.save(
+                        update_fields=[
+                            "payment_status",
+                        ]
+                    )
+
+        except Exception as e:
+
+            print("Webhook Processing Failed")
+            print(str(e))
+
+            return CustomResponse().errorResponse(
+                data={},
+                description="Failed to process webhook"
+            )
+
+        print("Webhook Processed Successfully")
+
+        return CustomResponse().successResponse(
+            data={},
+            description="Webhook processed successfully"
+        )
 
 
 from datetime import datetime
