@@ -17,10 +17,7 @@ client_version = settings.PHONE_PE_CLIENT_VERSION
 should_publish_events = False
 
 def get_phonepe_client():
-    if settings.PHONE_PE_ENV.upper() == "PRODUCTION":
-        phonepe_env = Env.PRODUCTION
-    else:
-        phonepe_env = Env.SANDBOX
+    phonepe_env = settings.PHONE_PE_ENV
 
     print("\n========== INITIALIZING PHONEPE CLIENT ==========")
     print("Client ID:", client_id)
