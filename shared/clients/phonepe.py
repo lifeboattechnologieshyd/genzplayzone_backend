@@ -17,10 +17,7 @@ client_version = settings.PHONE_PE_CLIENT_VERSION
 should_publish_events = False
 
 def get_phonepe_client():
-    if settings.PHONE_PE_ENV.upper() == "PRODUCTION":
-        phonepe_env = Env.PRODUCTION
-    else:
-        phonepe_env = Env.SANDBOX
+    phonepe_env = settings.PHONE_PE_ENV
 
     print("\n========== INITIALIZING PHONEPE CLIENT ==========")
     print("Client ID:", client_id)
@@ -28,15 +25,13 @@ def get_phonepe_client():
     print("Environment from settings:", settings.PHONE_PE_ENV)
     print("SDK Environment:", phonepe_env)
 
-    client = StandardCheckoutClient.get_instance(
+    return StandardCheckoutClient.get_instance(
         client_id=client_id,
         client_secret=client_secret,
         client_version=client_version,
         env=phonepe_env,
         should_publish_events=should_publish_events,
     )
-
-    return client
 
 
 def phone_pe_initate(order_id, total_amount):
