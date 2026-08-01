@@ -480,14 +480,21 @@ class PhonePeCallBack(APIView):
 
             print("Webhook Validation Success")
 
+
         except Exception as e:
 
-            print("Webhook Validation Failed")
-            print(str(e))
+            print("========== WEBHOOK VALIDATION FAILED ==========")
+
+            traceback.print_exc()
+
+            print("Exception:", str(e))
 
             return CustomResponse().successResponse(
+
                 data={},
+
                 description="Ignored"
+
             )
 
         if not callback.payload:
