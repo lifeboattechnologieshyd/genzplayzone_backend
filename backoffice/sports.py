@@ -11,6 +11,7 @@ class SportsApi(APIView):
         name = request.data.get("name")
         description = request.data.get("description")
         icon = request.data.get("icon")
+        image = request.data.get("image")
         display_order = request.data.get(
             "display_order",
             0
@@ -28,6 +29,7 @@ class SportsApi(APIView):
             name=name.strip(),
             description=description,
             icon=icon,
+            image=image,
             display_order=display_order,
             created_by=request.user
         )
@@ -59,6 +61,7 @@ class SportsApi(APIView):
                 "name": sport.name,
                 "description": sport.description,
                 "icon": sport.icon,
+                "image": sport.image,
                 "display_order": sport.display_order
             })
         return CustomResponse().successResponse(
@@ -98,6 +101,10 @@ class SportsApi(APIView):
         sport.icon = request.data.get(
             "icon",
             sport.icon
+        )
+        sport.image = request.data.get(
+            "image",
+            sport.image
         )
         sport.display_order = request.data.get(
             "display_order",
