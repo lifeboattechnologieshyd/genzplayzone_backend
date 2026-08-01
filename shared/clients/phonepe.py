@@ -17,7 +17,19 @@ client_version = settings.PHONE_PE_CLIENT_VERSION
 should_publish_events = False
 
 def get_phonepe_client():
-    phonepe_env = settings.PHONE_PE_ENV
+
+    env_name = str(settings.PHONE_PE_ENV).upper()
+
+    if env_name == "PRODUCTION":
+        phonepe_env = Env.PRODUCTION
+    else:
+        phonepe_env = Env.SANDBOX
+    print("PHONE_PE_ENV:", settings.PHONE_PE_ENV)
+    print("PHONE_PE_ENV Type:", type(settings.PHONE_PE_ENV))
+
+
+    print("SDK Environment:", phonepe_env)
+    print("SDK Environment Type:", type(phonepe_env))
 
     print("\n========== INITIALIZING PHONEPE CLIENT ==========")
     print("Client ID:", client_id)
