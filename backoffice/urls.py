@@ -1,6 +1,6 @@
 from django.urls import path
 
-from backoffice.Bookings import BackofficeBookingListApi
+from backoffice.Bookings import BackofficeBookingListApi, CourtAvailabilityApi
 from backoffice.banners import BannersApi
 from backoffice.courts import CourtsApi, CourtMediaApi, CourtPricingsApi
 from backoffice.promocode import PromocodeApi
@@ -8,7 +8,7 @@ from backoffice.sports import SportsApi
 from backoffice.support import AdminSupportTicketsAPIView, AdminSupportTicketDetailAPIView, \
     AdminReplySupportTicketAPIView, AdminUpdateSupportTicketStatusAPIView
 from backoffice.user import MobileSendOTPAdminView, MobileVerifyOTPAdminView
-from backoffice.users import BackofficeUsersApi
+from backoffice.users import BackofficeUsersApi, BackofficeCreateUsersApi, BackofficeVerifyUserApi
 from backoffice.venue import VenuesApi, AmenitiesApi, VenueAmenitiesApi
 
 urlpatterns = [
@@ -46,6 +46,9 @@ urlpatterns = [
 
 
     path("bookings", BackofficeBookingListApi.as_view()),
+    path("available-slots", CourtAvailabilityApi.as_view()),
     path("users", BackofficeUsersApi.as_view()),
+    path("user/create", BackofficeCreateUsersApi.as_view()),
+    path("user/verify", BackofficeVerifyUserApi.as_view()),
 
 ]

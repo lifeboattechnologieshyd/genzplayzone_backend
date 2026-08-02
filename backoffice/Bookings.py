@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.db import transaction
 from django.db.models import Q
@@ -6,10 +6,10 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
-from db.models import Booking, BookingPayment, BookingSlot, Court, UserMaster
+from db.models import Booking, BookingPayment, BookingSlot, Court, UserMaster, CourtPricing
 from shared.clients.sms import send_sms_to_mobile
 from shared.utils import CustomResponse, generate_booking_number, calculate_booking_amount, check_slot_availability, \
-    validate_booking_datetime
+    validate_booking_datetime, generate_slots
 
 
 class BackofficeBookingListApi(APIView):
@@ -267,3 +267,128 @@ class BackofficeBookingListApi(APIView):
             )
 
 
+class CourtAvailabilityApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def slot_status(self, booking_date, slot, booked):
+        status = Booking.SLOT_STATUS_AVAILABLE
+        today = timezone.localdate()
+        now = timezone.localtime()
+        print(now)
+        print(slot["start_time"])
+        if (slot["start_time"],slot["end_time"]) in booked:
+            status = Booking.SLOT_STATUS_BOOKED
+        else:
+            if booking_date < today:
+                status = Booking.SLOT_STATUS_PAST
+            elif booking_date == today:
+                print("date is today so comparing times")
+                slot_datetime = datetime.combine(
+                    booking_date,
+                    slot["start_time"]
+                )
+                now_datetime = now.replace(
+                    tzinfo=None
+                )
+                print(now_datetime)
+                print(slot_datetime)
+                if slot_datetime <= now_datetime + timedelta(minutes=15):
+                    status = Booking.SLOT_STATUS_PAST
+        return status
+
+    def get(self, request):
+        court_id = request.GET.get("court_id")
+        booking_date = request.GET.get("booking_date")
+        if not court_id:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court is required"
+            )
+        if not booking_date:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Booking date is required"
+            )
+        try:
+            court = Court.objects.get(
+                id=court_id,
+                is_active=True
+            )
+        except Court.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court not found"
+            )
+        try:
+            booking_date = datetime.strptime(
+                booking_date,
+                "%Y-%m-%d"
+            ).date()
+        except Exception:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Invalid booking date."
+            )
+        day = booking_date.strftime(
+            "%A"
+        ).upper()
+        pricing_list = CourtPricing.objects.filter(
+            court=court,
+            day=day,
+            is_active=True
+        ).order_by(
+            "start_time"
+        )
+        booked_slots = BookingSlot.objects.filter(
+            booking__court=court,
+            booking__booking_date=booking_date
+        ).filter(
+            Q(
+                booking__booking_status=Booking.STATUS_CONFIRMED
+            ) |
+            Q(
+                booking__booking_status=Booking.STATUS_PENDING_PAYMENT,
+                booking__expires_at__gt=timezone.now()
+            )
+        )
+        booked = set()
+        for slot in booked_slots:
+            booked.add(
+                (
+                    slot.start_time,
+                    slot.end_time
+                )
+            )
+        slots = []
+        for pricing in pricing_list:
+            generated_slots = generate_slots(
+                pricing,
+                court.slot_duration_minutes
+            )
+            for slot in generated_slots:
+                available = (
+                    slot["start_time"],
+                    slot["end_time"]
+                ) not in booked
+                # Default
+                status = self.slot_status(booking_date, slot, booked)
+
+                slots.append({
+                    "start_time": slot["start_time"].strftime("%H:%M"),
+                    "end_time": slot["end_time"].strftime("%H:%M"),
+                    "price": slot["price"],
+                    "available": available,
+                    "status": status
+                })
+
+        return CustomResponse().successResponse(
+            data={
+                "court": {
+                    "id": str(court.id),
+                    "name": court.name
+                },
+                "booking_date": booking_date,
+                "slots": slots
+            },
+            description="Availability fetched successfully"
+        )
