@@ -372,7 +372,6 @@ class CourtAvailabilityApi(APIView):
                 ) not in booked
                 # Default
                 status = self.slot_status(booking_date, slot, booked)
-
                 slots.append({
                     "start_time": slot["start_time"].strftime("%H:%M"),
                     "end_time": slot["end_time"].strftime("%H:%M"),
@@ -380,7 +379,6 @@ class CourtAvailabilityApi(APIView):
                     "available": available,
                     "status": status
                 })
-
         return CustomResponse().successResponse(
             data={
                 "court": {
