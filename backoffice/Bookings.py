@@ -1,9 +1,15 @@
+from datetime import datetime
+
+from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
-from db.models import Booking
-from shared.utils import CustomResponse
+from db.models import Booking, BookingPayment, BookingSlot, Court, UserMaster
+from shared.clients.sms import send_sms_to_mobile
+from shared.utils import CustomResponse, generate_booking_number, calculate_booking_amount, check_slot_availability, \
+    validate_booking_datetime
 
 
 class BackofficeBookingListApi(APIView):
@@ -109,3 +115,155 @@ class BackofficeBookingListApi(APIView):
             },
             description="Bookings fetched successfully"
         )
+
+
+    @transaction.atomic
+    def post(self, request):
+
+        user_id = request.data.get("user_id")
+        court_id = request.data.get("court_id")
+        booking_date = request.data.get("booking_date")
+        slots = request.data.get("slots", [])
+        payment_method = request.data.get("payment_method", "CASH")
+
+        if not user_id:
+            return CustomResponse().errorResponse(
+                data={},
+                description="User is required"
+            )
+
+        if not court_id:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court is required"
+            )
+
+        if not booking_date:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Booking date is required"
+            )
+
+        if not slots:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Please select slots"
+            )
+
+        try:
+            user = UserMaster.objects.get(
+                id=user_id,
+                is_active=True
+            )
+        except UserMaster.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="User not found"
+            )
+
+        try:
+            court = Court.objects.get(
+                id=court_id,
+                is_active=True
+            )
+        except Court.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Court not found"
+            )
+
+        try:
+            booking_date = datetime.strptime(
+                booking_date,
+                "%Y-%m-%d"
+            ).date()
+        except Exception:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Invalid booking date"
+            )
+        try:
+            validate_booking_datetime(
+                booking_date,
+                slots
+            )
+
+            check_slot_availability(
+                court,
+                booking_date,
+                slots
+            )
+
+            total_amount, slot_prices = calculate_booking_amount(
+                court,
+                booking_date,
+                slots
+            )
+
+            booking = Booking.objects.create(
+                booking_number=generate_booking_number(),
+                user=user,
+                court=court,
+                booking_date=booking_date,
+                total_amount=total_amount,
+                booking_status=Booking.STATUS_CONFIRMED,
+                payment_status=Booking.PAYMENT_SUCCESS
+            )
+
+            for slot in slot_prices:
+
+                BookingSlot.objects.create(
+                    booking=booking,
+                    start_time=slot["start_time"],
+                    end_time=slot["end_time"],
+                    price=slot["price"]
+                )
+
+            BookingPayment.objects.create(
+                booking=booking,
+                payment_gateway=payment_method,
+                order_id=f"OFFLINE-{booking.booking_number}",
+                amount=booking.total_amount,
+                status=BookingPayment.STATUS_SUCCESS,
+                paid_at=timezone.now(),
+                raw_response={
+                    "created_by": str(request.user.id),
+                    "type": "BACKOFFICE"
+                }
+            )
+
+            first_slot = BookingSlot.objects.filter(booking=booking).order_by("start_time").first()
+
+            start_time = first_slot.start_time.strftime("%-I %p")
+            end_time = first_slot.end_time.strftime("%-I %p")
+
+            slot_text = (
+                f"{booking.booking_date.strftime('%d %b %Y')}, "
+                f"{start_time}-{end_time}"
+            )
+            # TODO: send push and email n whatsapp too.
+            username = "Player" if user.full_name is None else user.full_name
+            var = f"{username}|{booking.booking_number}|{booking.court.name}|{slot_text}|"
+            print(var)
+            send_sms_to_mobile(var, user.mobile, 12663)
+            print("SMS Sent successfully")
+            # send_push_notification()
+            # send_whatsapp()
+            # send_email()
+
+            return CustomResponse().successResponse(
+                data={
+                    "booking_id": str(booking.id),
+                    "booking_number": booking.booking_number,
+                    "total_amount": booking.total_amount
+                },
+                description="Booking created successfully"
+            )
+
+        except Exception as e:
+            return CustomResponse().errorResponse(
+                data={},
+                description=str(e)
+            )
+
+
