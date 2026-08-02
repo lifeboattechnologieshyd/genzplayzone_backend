@@ -88,8 +88,8 @@ class BackofficeBookingListApi(APIView):
             data.append({
                 "booking_id": str(booking.id),
                 "booking_number": booking.booking_number,
-                "customer_name": booking.user.get_full_name(),
-                "customer_mobile": booking.user.phone,
+                "customer_name": booking.user.full_name,
+                "customer_mobile": booking.user.mobile,
                 "venue": booking.court.venue.name,
                 "court": booking.court.name,
                 "sports": sports,
