@@ -156,9 +156,10 @@ class BackofficeDashboardApi(APIView):
             user_role__contains=["admin"]
         ).count()
 
-        paid_users = users.filter(
-            booking__payment_status=Booking.PAYMENT_SUCCESS
-        ).distinct().count()
+        paid_users = 0
+        # users.filter(
+        #     booking__payment_status=Booking.PAYMENT_SUCCESS
+        # ).distinct().count()
 
         total_bookings = bookings.count()
 
