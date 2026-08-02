@@ -98,10 +98,7 @@ class BackofficeCreateUsersApi(APIView):
         send_sms_to_mobile(var, phone, 12558)
         print(f"OTP for {phone} : {otp}")
         return CustomResponse().successResponse(
-            data={
-                "user_id": str(user.id),
-                "mobile_verified": False
-            },
+            data={},
             description="OTP sent successfully"
         )
 
