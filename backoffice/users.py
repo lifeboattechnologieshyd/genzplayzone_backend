@@ -77,7 +77,7 @@ class BackofficeCreateUsersApi(APIView):
                 description="Phone number is required"
             )
 
-        user = UserMaster.objects.filter(phone=phone).first()
+        user = UserMaster.objects.filter(mobile=phone).first()
         if user:
             if user.mobile_verified:
                 return CustomResponse().successResponse(
