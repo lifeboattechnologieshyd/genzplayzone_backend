@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from db.models import UserMaster, OTPs, Booking
-from shared.clients.sms import send_otp_sms, send_sms_to_mobile
+from shared.clients.sms import send_sms_to_mobile
 from shared.utils import CustomResponse
 
 

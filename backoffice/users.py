@@ -68,7 +68,7 @@ class BackofficeCreateUsersApi(APIView):
         if not name:
             return CustomResponse().errorResponse(
                 data={},
-                description="First name is required"
+                description="name is required"
             )
 
         if not phone:
