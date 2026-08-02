@@ -24,9 +24,11 @@ class BackofficeBookingListApi(APIView):
                 "user",
                 "court",
                 "court__venue",
-                "court__sport"
+            ).prefetch_related(
+                "slots",
+                "court__court_sports",
+                "court__court_sports__sport"
             )
-            .prefetch_related("slots")
             .order_by("-created_at")
         )
         if search:
@@ -79,6 +81,10 @@ class BackofficeBookingListApi(APIView):
                     "end_time": slot.end_time.strftime("%I:%M %p"),
                     "price": float(slot.price)
                 })
+            sports = [
+                cs.sport.name
+                for cs in booking.court.court_sports.filter(is_active=True)
+            ]
             data.append({
                 "booking_id": str(booking.id),
                 "booking_number": booking.booking_number,
@@ -86,7 +92,7 @@ class BackofficeBookingListApi(APIView):
                 "customer_mobile": booking.user.phone,
                 "venue": booking.court.venue.name,
                 "court": booking.court.name,
-                "sport": booking.court.sport.name,
+                "sports": sports,
                 "booking_date": booking.booking_date,
                 "slots": slot_data,
                 "total_amount": float(booking.total_amount),
