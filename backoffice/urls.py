@@ -7,7 +7,7 @@ from backoffice.promocode import PromocodeApi
 from backoffice.sports import SportsApi
 from backoffice.support import AdminSupportTicketsAPIView, AdminSupportTicketDetailAPIView, \
     AdminReplySupportTicketAPIView, AdminUpdateSupportTicketStatusAPIView
-from backoffice.user import MobileSendOTPAdminView, MobileVerifyOTPAdminView
+from backoffice.user import MobileSendOTPAdminView, MobileVerifyOTPAdminView, BackofficeDashboardApi
 from backoffice.users import BackofficeUsersApi, BackofficeCreateUsersApi, BackofficeVerifyUserApi
 from backoffice.venue import VenuesApi, AmenitiesApi, VenueAmenitiesApi
 
@@ -50,5 +50,6 @@ urlpatterns = [
     path("users", BackofficeUsersApi.as_view()),
     path("user/create", BackofficeCreateUsersApi.as_view()),
     path("user/verify", BackofficeVerifyUserApi.as_view()),
+    path("dashboard", BackofficeDashboardApi.as_view()),
 
 ]

@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from db.models import UserMaster, OTPs
+from db.models import UserMaster, OTPs, Booking
 from shared.clients.sms import send_otp_sms, send_sms_to_mobile
 from shared.utils import CustomResponse
 
@@ -112,4 +112,92 @@ class MobileVerifyOTPAdminView(APIView):
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
             }
+        )
+
+
+from django.db.models import Count, Sum
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+
+
+class BackofficeDashboardApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+
+        users = UserMaster.objects.all()
+
+        bookings = Booking.objects.all()
+
+        if from_date:
+            users = users.filter(
+                created_at__date__gte=from_date
+            )
+            bookings = bookings.filter(
+                created_at__date__gte=from_date
+            )
+
+        if to_date:
+            users = users.filter(
+                created_at__date__lte=to_date
+            )
+            bookings = bookings.filter(
+                created_at__date__lte=to_date
+            )
+
+        total_users = users.filter(
+            role__contains=["user"]
+        ).count()
+
+        admins = users.filter(
+            role__contains=["admin"]
+        ).count()
+
+        paid_users = users.filter(
+            booking__payment_status=Booking.PAYMENT_SUCCESS
+        ).distinct().count()
+
+        total_bookings = bookings.count()
+
+        upcoming_bookings = bookings.filter(
+            booking_status=Booking.STATUS_CONFIRMED
+        ).count()
+
+        cancelled_bookings = bookings.filter(
+            booking_status=Booking.STATUS_CANCELLED
+        ).count()
+
+        total_amount = bookings.filter(
+            payment_status=Booking.PAYMENT_SUCCESS
+        ).aggregate(
+            total=Sum("total_amount")
+        )["total"] or 0
+
+        cancelled_charges = bookings.filter(
+            booking_status=Booking.STATUS_CANCELLED
+        ).aggregate(
+            total=Sum("total_amount")
+        )["total"] or 0
+
+        return CustomResponse().successResponse(
+            data={
+                "users": {
+                    "total_users": total_users,
+                    "paid_users": paid_users,
+                    "admins": admins
+                },
+                "bookings": {
+                    "total_bookings": total_bookings,
+                    "upcoming_bookings": upcoming_bookings,
+                    "cancelled_bookings": cancelled_bookings
+                },
+                "revenue": {
+                    "total_amount": total_amount,
+                    "cancelled_charges": cancelled_charges
+                }
+            },
+            description="Dashboard statistics fetched successfully"
         )
