@@ -153,7 +153,7 @@ class BackofficeDashboardApi(APIView):
         ).count()
 
         admins = users.filter(
-            role__contains=["admin"]
+            user_role__contains=["admin"]
         ).count()
 
         paid_users = users.filter(
