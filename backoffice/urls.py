@@ -1,6 +1,6 @@
 from django.urls import path
 
-from backoffice.Bookings import BackofficeBookingListApi, BackofficeCreateBookingApi
+from backoffice.Bookings import BackofficeBookingListApi
 from backoffice.banners import BannersApi
 from backoffice.courts import CourtsApi, CourtMediaApi, CourtPricingsApi
 from backoffice.promocode import PromocodeApi
