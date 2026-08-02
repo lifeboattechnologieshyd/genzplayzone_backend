@@ -22,7 +22,8 @@ class SportsApi(APIView):
             data.append({
                 "id": str(sport.id),
                 "name": sport.name,
-                "icon": sport.icon
+                "icon": sport.icon,
+                "image": sport.image,
             })
 
         return CustomResponse().successResponse(

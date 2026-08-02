@@ -166,6 +166,11 @@ class Sport(AuditModel):
         blank=True,
         max_length=200,
     )
+    image = models.CharField(
+        null=True,
+        blank=True,
+        max_length=200,
+    )
     description = models.TextField(
         null=True,
         blank=True
