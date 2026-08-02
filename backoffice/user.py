@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from db.models import UserMaster, OTPs, Booking
+from db.models import UserMaster, OTPs, Booking, BookingPayment
 from shared.clients.sms import send_sms_to_mobile
 from shared.utils import CustomResponse
 
@@ -156,10 +156,10 @@ class BackofficeDashboardApi(APIView):
             user_role__contains=["admin"]
         ).count()
 
-        paid_users = 0
-        # users.filter(
-        #     booking__payment_status=Booking.PAYMENT_SUCCESS
-        # ).distinct().count()
+        paid_users =  users.filter(
+                bookings__payment__status=BookingPayment.STATUS_SUCCESS
+            ).distinct().count()
+
 
         total_bookings = bookings.count()
 
