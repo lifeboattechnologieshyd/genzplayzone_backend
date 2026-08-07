@@ -1,6 +1,6 @@
 from django.urls import path
 
-from backoffice.Bookings import BackofficeBookingListApi, CourtAvailabilityApi, BookingsApiView
+from backoffice.Bookings import BackofficeBookingListApi, CourtAvailabilityApi
 from backoffice.banners import BannersApi
 from backoffice.courts import CourtsApi, CourtMediaApi, CourtPricingsApi
 from backoffice.promocode import PromocodeApi
@@ -52,6 +52,5 @@ urlpatterns = [
     path("user/verify", BackofficeVerifyUserApi.as_view()),
     path("dashboard", BackofficeDashboardApi.as_view()),
 
-    path("create-booking",BookingsApiView.as_view()),
 
 ]

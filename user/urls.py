@@ -1,6 +1,7 @@
 from django.urls import path
 
-from .booking import BookingsApi, CourtAvailabilityApi, PhonePeCallBack, PaymentResult, CheckInAPI, CancelBookingAPI
+from .booking import BookingsApi, CourtAvailabilityApi, PhonePeCallBack, PaymentResult, CheckInAPI, CancelBookingAPI, \
+    BookingsApiView
 from .courts import CourtsApi, CourtPricingApi
 from .promocode import PromoCodeAPI, ApplyPromoCodeAPI
 from .sports import SportsApi
@@ -22,7 +23,11 @@ urlpatterns = [
     path("promo-codes",PromoCodeAPI.as_view()),
     path("apply/promo-code",ApplyPromoCodeAPI.as_view()),
 
+    # pg flow  for app
     path("booking", BookingsApi.as_view()),
+
+    # checkout flow for web
+    path("create-booking",BookingsApiView.as_view()),
     path("phonepe/callback", PhonePeCallBack.as_view()),
     path("payment/result", PaymentResult.as_view()),
     path("booking/check-in", CheckInAPI.as_view()),
