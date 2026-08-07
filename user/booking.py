@@ -510,6 +510,8 @@ class PhonePeCallBack(APIView):
         print("Merchant Order ID:", merchant_order_id)
         print("Gateway Order ID:", gateway_order_id)
         print("State:", state)
+        print("MetaInfo Type:", type(payload.meta_info))
+        print("MetaInfo Value:", payload.meta_info)
 
         booking_payment = BookingPayment.objects.select_related(
             "booking"
@@ -547,9 +549,12 @@ class PhonePeCallBack(APIView):
 
         try:
 
+
             booking_payment.order_id = gateway_order_id
             booking_payment.transaction_id = transaction_id
             booking_payment.raw_response = payload.__dict__
+            print("Payload Type:", type(payload))
+            print("Payload Dict:", payload.__dict__)
 
             if state == "COMPLETED":
 
@@ -567,6 +572,7 @@ class PhonePeCallBack(APIView):
                         "payment_status",
                     ]
                 )
+
 
                 booking_payment.save(
                     update_fields=[
