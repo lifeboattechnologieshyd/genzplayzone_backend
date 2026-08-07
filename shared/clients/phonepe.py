@@ -87,31 +87,28 @@ def phone_pe_checkout(order_id, total_amount):
     print("PhonePe client initialized")
 
     merchant_order_id = str(order_id)
-
-    print(f"Merchant Order ID: {merchant_order_id}")
+    print("Merchant Order ID:", merchant_order_id)
 
     amount_in_paise = int(total_amount * 100)
-
-    print(f"Amount (Paise): {amount_in_paise}")
+    print("Amount (Paise):", amount_in_paise)
 
     meta_info = MetaInfo(
-        udf1="wallet_topup"
+        udf1="booking"
     )
 
-    print("Meta info created")
-
-    checkout_request = CreateSdkOrderRequest.build_standard_checkout_request(
+    request = StandardCheckoutPayRequest.build_request(
         merchant_order_id=merchant_order_id,
         amount=amount_in_paise,
+        redirect_url="https://google.com",
         meta_info=meta_info,
-        disable_payment_retry=True,
+        message="booking",
+        expire_after=3600,
     )
 
-    print("Checkout request created")
+    print("========== PAY REQUEST ==========")
+    print(request)
 
-    response = client.create_sdk_order(
-        checkout_request
-    )
+    response = client.pay(request)
 
     print("========== PHONEPE RESPONSE ==========")
     print(response)
@@ -124,7 +121,6 @@ def phone_pe_checkout(order_id, total_amount):
     }
 
     print("Checkout Response:", checkout_response)
-    print("========== CHECKOUT CREATED ==========")
 
     return checkout_response
 
