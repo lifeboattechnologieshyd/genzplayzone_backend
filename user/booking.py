@@ -1,3 +1,4 @@
+import json
 import traceback
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -552,7 +553,7 @@ class PhonePeCallBack(APIView):
 
             booking_payment.order_id = gateway_order_id
             booking_payment.transaction_id = transaction_id
-            booking_payment.raw_response = payload.__dict__
+            booking_payment.raw_response = json.loads(raw_body)
             print("Payload Type:", type(payload))
             print("Payload Dict:", payload.__dict__)
 
