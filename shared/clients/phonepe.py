@@ -78,6 +78,57 @@ def phone_pe_initate(order_id, total_amount):
     return response
 
 
+
+def phone_pe_checkout(order_id, total_amount):
+    print("========== PHONEPE CHECKOUT ==========")
+
+    client = get_phonepe_client()
+
+    print("PhonePe client initialized")
+
+    merchant_order_id = str(order_id)
+
+    print(f"Merchant Order ID: {merchant_order_id}")
+
+    amount_in_paise = int(total_amount * 100)
+
+    print(f"Amount (Paise): {amount_in_paise}")
+
+    meta_info = MetaInfo(
+        udf1="wallet_topup"
+    )
+
+    print("Meta info created")
+
+    checkout_request = CreateSdkOrderRequest.build_standard_checkout_request(
+        merchant_order_id=merchant_order_id,
+        amount=amount_in_paise,
+        meta_info=meta_info,
+        disable_payment_retry=True,
+    )
+
+    print("Checkout request created")
+
+    response = client.create_sdk_order(
+        checkout_request
+    )
+
+    print("========== PHONEPE RESPONSE ==========")
+    print(response)
+
+    checkout_response = {
+        "redirect_url": response.redirect_url,
+        "order_id": response.order_id,
+        "state": response.state,
+        "expire_at": response.expire_at,
+    }
+
+    print("Checkout Response:", checkout_response)
+    print("========== CHECKOUT CREATED ==========")
+
+    return checkout_response
+
+
 def check_order_status(m_order_id):
     client = get_phonepe_client()
     merchant_order_id = m_order_id
