@@ -14,6 +14,8 @@ from phonepe.sdk.pg.env import Env
 client_secret = settings.PHONE_PE_CLIENT_SECRETE
 client_id = settings.PHONE_PE_CLIENT_ID
 client_version = settings.PHONE_PE_CLIENT_VERSION
+redirect_url = settings.PHONE_PE_REDIRECT_URL
+
 should_publish_events = False
 
 def get_phonepe_client():
@@ -99,7 +101,7 @@ def phone_pe_checkout(order_id, total_amount):
     request = StandardCheckoutPayRequest.build_request(
         merchant_order_id=merchant_order_id,
         amount=amount_in_paise,
-        redirect_url="https://google.com",
+        redirect_url=redirect_url,
         meta_info=meta_info,
         message="booking",
         expire_after=3600,
