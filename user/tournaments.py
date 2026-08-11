@@ -96,7 +96,7 @@ class TournamentListAPI(APIView):
                         remaining_slots
                     ),
                     "status": tournament.status,
-                    "is_joined": tournament.is_joined
+                    "is_joined": is_joined
                 })
 
             return CustomResponse.successResponse(
@@ -107,6 +107,96 @@ class TournamentListAPI(APIView):
 
         except Exception as e:
 
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )
+
+
+class MyTournamentListAPI(APIView):
+
+    def get(self, request):
+
+        try:
+            status_filter = request.GET.get("status")
+            participants = TournamentParticipant.objects.filter(
+                user=request.user
+            ).select_related(
+                "tournament",
+                "tournament__sport",
+                "tournament__venue"
+            ).order_by(
+                "-registered_at"
+            )
+
+            if status_filter:
+                participants = participants.filter(
+                    tournament__status=status_filter
+                )
+
+            data = []
+
+            for participant in participants:
+                tournament = participant.tournament
+                result = getattr(
+                    participant,
+                    "result",
+                    None
+                )
+
+                item = {
+                    "id": str(tournament.id),
+
+                    "name": tournament.name,
+
+                    "sport": {
+                        "id": str(tournament.sport.id),
+                        "name": tournament.sport.name
+                    },
+
+                    "venue": {
+                        "id": str(tournament.venue.id),
+                        "name": tournament.venue.name
+                    },
+
+                    "banner": tournament.banner,
+
+                    "tournament_date": (
+                        tournament.tournament_date
+                    ),
+
+                    "registration_fee": str(
+                        tournament.registration_fee
+                    ),
+
+                    "status": tournament.status,
+
+                    "payment_status": (
+                        participant.payment_status
+                    ),
+
+                    "registered_at": (
+                        participant.registered_at
+                    )
+                }
+
+                # Result available only after completion
+                if result:
+                    d = {
+                        "rank": result.rank,
+                        "points": result.points,
+                        "prize_amount": str(result.prize_amount)
+                    }
+                    item["result"] = d
+                else:
+                    item["result"] = None
+                data.append(item)
+            return CustomResponse.successResponse(
+                data=data,
+                total=len(data),
+                description="My tournaments fetched successfully"
+            )
+
+        except Exception as e:
             return CustomResponse.errorResponse(
                 description=str(e)
             )

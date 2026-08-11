@@ -139,7 +139,12 @@ class TournamentResult(AuditModel):
         on_delete=models.CASCADE,
         related_name="results"
     )
-
+    participant = models.OneToOneField(
+        TournamentParticipant,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="result"
+    )
     user = models.ForeignKey(
         UserMaster,
         on_delete=models.CASCADE,
