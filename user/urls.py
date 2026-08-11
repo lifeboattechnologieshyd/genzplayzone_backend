@@ -7,6 +7,7 @@ from .promocode import PromoCodeAPI, ApplyPromoCodeAPI
 from .sports import SportsApi
 from .support import CreateSupportTicketAPIView, SupportTicketDetailAPIView, SendSupportMessageAPIView, \
     SubmitSupportTicketRatingAPIView
+from .tournaments import TournamentListAPI
 from .views import SendOtp, VerifyOTP, FileUploadView, BannersApi, ProfileApi
 
 urlpatterns = [
@@ -25,6 +26,10 @@ urlpatterns = [
 
     # pg flow  for app
     path("booking", BookingsApi.as_view()),
+
+
+    # tournaments
+    path("tournaments", TournamentListAPI.as_view()),
 
     # checkout flow for web
     path("create-booking",BookingsApiView.as_view()),

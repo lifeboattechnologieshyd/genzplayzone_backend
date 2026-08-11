@@ -2,13 +2,13 @@ import json
 from datetime import datetime
 
 from django.utils import timezone
-from django.views import View
+from rest_framework.views import APIView
 
 from db.models import Sport, Venue, Tournament
 from shared.utils import CustomResponse
 
 
-class TournamentCrudAPI(View):
+class TournamentCrudAPI(APIView):
 
     def post(self, request):
         try:
@@ -265,7 +265,7 @@ class TournamentCrudAPI(View):
         except Exception as e:
             return CustomResponse.errorResponse(description=str(e))
 
-class TournamentDeleteAPI(View):
+class TournamentDeleteAPI(APIView):
 
     def delete(self, request, tournament_id):
         try:
@@ -285,6 +285,77 @@ class TournamentDeleteAPI(View):
             return CustomResponse.errorResponse(
                 description="Tournament not found"
             )
+        except Exception as e:
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )
+
+
+class TournamentPublishAPI(APIView):
+
+    def post(self, request, tournament_id):
+
+        try:
+            tournament = Tournament.objects.get(
+                id=tournament_id
+            )
+            # Already published
+            if tournament.status == Tournament.STATUS_OPEN:
+                return CustomResponse.errorResponse(
+                    description="Tournament is already published"
+                )
+            # Cannot publish cancelled tournament
+            if tournament.status == Tournament.STATUS_CANCELLED:
+                return CustomResponse.errorResponse(
+                    description="Cancelled tournament cannot be published"
+                )
+
+            # Cannot publish ongoing/completed tournament
+            if tournament.status in [
+                Tournament.STATUS_ONGOING,
+                Tournament.STATUS_COMPLETED
+            ]:
+                return CustomResponse.errorResponse(
+                    description="Tournament cannot be published in its current status"
+                )
+
+            # Validate tournament date
+            if tournament.tournament_date < timezone.localdate():
+                return CustomResponse.errorResponse(
+                    description="Past tournament cannot be published"
+                )
+
+            # Validate registration deadline
+            if tournament.registration_deadline <= timezone.now():
+                return CustomResponse.errorResponse(
+                    description="Registration deadline has already passed"
+                )
+
+            # Validate participant limit
+            if tournament.max_participants <= 0:
+                return CustomResponse.errorResponse(
+                    description="Maximum participants must be greater than zero"
+                )
+
+            # Publish
+            tournament.status = Tournament.STATUS_OPEN
+            tournament.save()
+
+            return CustomResponse.successResponse(
+                data={
+                    "id": str(tournament.id),
+                    "name": tournament.name,
+                    "status": tournament.status
+                },
+                description="Tournament published successfully"
+            )
+
+        except Tournament.DoesNotExist:
+
+            return CustomResponse.errorResponse(
+                description="Tournament not found"
+            )
+
         except Exception as e:
             return CustomResponse.errorResponse(
                 description=str(e)
