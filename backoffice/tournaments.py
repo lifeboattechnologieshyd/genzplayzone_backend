@@ -264,3 +264,28 @@ class TournamentCrudAPI(View):
             return CustomResponse.successResponse(data=result)
         except Exception as e:
             return CustomResponse.errorResponse(description=str(e))
+
+class TournamentDeleteAPI(View):
+
+    def delete(self, request, tournament_id):
+        try:
+            tournament = Tournament.objects.get(
+                id=tournament_id
+            )
+            if tournament.status == Tournament.STATUS_COMPLETED:
+                return CustomResponse.errorResponse(
+                    description="Completed tournament cannot be deleted/cancelled"
+                )
+            tournament.status = Tournament.STATUS_CANCELLED
+            tournament.save()
+            #todo: refund to be added.
+            return CustomResponse.successResponse(data={}, description="Tournament cancelled successfully")
+
+        except Tournament.DoesNotExist:
+            return CustomResponse.errorResponse(
+                description="Tournament not found"
+            )
+        except Exception as e:
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )

@@ -7,7 +7,7 @@ from backoffice.promocode import PromocodeApi
 from backoffice.sports import SportsApi
 from backoffice.support import AdminSupportTicketsAPIView, AdminSupportTicketDetailAPIView, \
     AdminReplySupportTicketAPIView, AdminUpdateSupportTicketStatusAPIView
-from backoffice.tournaments import  TournamentCrudAPI
+from backoffice.tournaments import TournamentCrudAPI, TournamentDeleteAPI
 from backoffice.user import MobileSendOTPAdminView, MobileVerifyOTPAdminView, BackofficeDashboardApi
 from backoffice.users import BackofficeUsersApi, BackofficeCreateUsersApi, BackofficeVerifyUserApi
 from backoffice.venue import VenuesApi, AmenitiesApi, VenueAmenitiesApi
@@ -44,18 +44,12 @@ urlpatterns = [
     path("court-pricing", CourtPricingsApi.as_view()),
     path("court-pricing/<uuid:pricing_id>", CourtPricingsApi.as_view()),
     path("promo-codes", PromocodeApi.as_view()),
-
-
     path("bookings", BackofficeBookingListApi.as_view()),
     path("available-slots", CourtAvailabilityApi.as_view()),
     path("users", BackofficeUsersApi.as_view()),
     path("user/create", BackofficeCreateUsersApi.as_view()),
     path("user/verify", BackofficeVerifyUserApi.as_view()),
     path("dashboard", BackofficeDashboardApi.as_view()),
-
-
-
     path("tournament", TournamentCrudAPI.as_view()),
-
-
+    path("tournament/<uuid:tournament_id>", TournamentDeleteAPI.as_view()),
 ]
