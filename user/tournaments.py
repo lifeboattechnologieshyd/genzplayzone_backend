@@ -286,17 +286,13 @@ class TournamentJoinAPI(APIView):
             # --------------------------------
 
             if tournament.registration_fee <= 0:
-
                 participant.payment_status = (
                     TournamentParticipant.PAYMENT_SUCCESS
                 )
-
                 participant.payment_reference = (
                     f"FREE-{participant.id}"
                 )
-
                 participant.save()
-
                 return CustomResponse.successResponse(
                     data={
                         "participant_id": str(participant.id),
