@@ -200,3 +200,130 @@ class MyTournamentListAPI(APIView):
             return CustomResponse.errorResponse(
                 description=str(e)
             )
+
+
+from django.db import transaction
+from django.utils import timezone
+from rest_framework.views import APIView
+
+class TournamentJoinAPI(APIView):
+
+    @transaction.atomic
+    def post(self, request, tournament_id):
+
+        try:
+            tournament = (
+                Tournament.objects
+                .select_for_update()
+                .get(id=tournament_id)
+            )
+            # --------------------------------
+            # Check tournament status
+            # --------------------------------
+            if tournament.status != Tournament.STATUS_OPEN:
+                return CustomResponse.errorResponse(
+                    description="Tournament is not open for registration"
+                )
+            # --------------------------------
+            # Check registration deadline
+            # --------------------------------
+            if timezone.now() >= tournament.registration_deadline:
+                return CustomResponse.errorResponse(
+                    description="Tournament registration is closed"
+                )
+            # --------------------------------
+            # Check existing registration
+            # --------------------------------
+            participant = (
+                TournamentParticipant.objects
+                .filter(
+                    tournament=tournament,
+                    user=request.user
+                )
+                .first()
+            )
+            if participant:
+                if participant.payment_status == (
+                    TournamentParticipant.PAYMENT_SUCCESS
+                ):
+                    return CustomResponse.errorResponse(
+                        description="You have already joined this tournament"
+                    )
+                if participant.payment_status == (
+                    TournamentParticipant.PAYMENT_PENDING
+                ):
+                    return CustomResponse.errorResponse(
+                        description="You already have a pending payment"
+                    )
+            else:
+
+                registered_count = (
+                    TournamentParticipant.objects
+                    .filter(
+                        tournament=tournament,
+                        payment_status=(
+                            TournamentParticipant.PAYMENT_SUCCESS
+                        )
+                    )
+                    .count()
+                )
+                if registered_count >= tournament.max_participants:
+                    tournament.status = Tournament.STATUS_FULL
+                    tournament.save()
+                    return CustomResponse.errorResponse(
+                        description="Tournament is full"
+                    )
+                participant = TournamentParticipant.objects.create(
+                    tournament=tournament,
+                    user=request.user,
+                    payment_status=(
+                        TournamentParticipant.PAYMENT_PENDING
+                    )
+                )
+
+            # --------------------------------
+            # FREE TOURNAMENT
+            # --------------------------------
+
+            if tournament.registration_fee <= 0:
+
+                participant.payment_status = (
+                    TournamentParticipant.PAYMENT_SUCCESS
+                )
+
+                participant.payment_reference = (
+                    f"FREE-{participant.id}"
+                )
+
+                participant.save()
+
+                return CustomResponse.successResponse(
+                    data={
+                        "participant_id": str(participant.id),
+                        "tournament_id": str(tournament.id),
+                        "payment_required": False
+                    },
+                    description="Successfully joined tournament"
+                )
+            return CustomResponse.successResponse(
+                data={
+                    "participant_id": str(participant.id),
+                    "tournament_id": str(tournament.id),
+                    "payment_required": True,
+                    "amount": str(
+                        tournament.registration_fee
+                    ),
+                    "payment_status": participant.payment_status
+                },
+                description="Tournament registration initiated"
+            )
+
+        except Tournament.DoesNotExist:
+            return CustomResponse.errorResponse(
+                description="Tournament not found"
+            )
+
+        except Exception as e:
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )
