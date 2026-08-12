@@ -310,16 +310,14 @@ class TournamentJoinAPI(APIView):
                 print(response)
 
                 with transaction.atomic():
-
                     print("Creating Booking Payment...")
-
                     payment = BookingPayment.objects.create(
                         tournament_participant=participant,
                         payment_gateway="PHONEPE",
                         type="TOURNAMENT",
                         order_id=response.order_id,
                         amount=tournament.registration_fee*100,
-                        status=TournamentPayment.STATUS_PENDING,
+                        status=BookingPayment.STATUS_PENDING,
                         raw_response=response.__dict__,
                     )
                     print("Tournament Payment Created")

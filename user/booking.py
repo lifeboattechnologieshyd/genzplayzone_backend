@@ -495,9 +495,7 @@ class PhonePeCallBack(APIView):
 
         # Validation callback
         if not callback.payload:
-
             print("Validation Callback Received")
-
             return CustomResponse().successResponse(
                 data={},
                 description="Validation Success"
@@ -505,13 +503,10 @@ class PhonePeCallBack(APIView):
 
         payload = callback.payload
         event = callback.event
-
         print("Event:", event)
-
         # ======================================================
         # REFUND EVENTS
         # ======================================================
-
         if event in (
             "pg.refund.completed",
             "pg.refund.failed",
@@ -532,25 +527,41 @@ class PhonePeCallBack(APIView):
             ).first()
 
             if booking_payment is None:
-
                 print("Booking Payment Not Found")
-
                 return CustomResponse().successResponse(
                     data={},
                     description="Booking payment not found"
                 )
+            if booking_payment.type == 'TOURNAMENT':
+                participant = booking_payment.tournament_participant
+                booking_payment.raw_response = json.loads(raw_body)
+                booking_payment.raw_response = json.loads(raw_body)
+                if payload.state == "COMPLETED":
+                    print("Refund Completed")
+                    participant.payment_status = Booking.PAYMENT_SUCCESS
+                    participant.save(
+                        update_fields=[
+                            "payment_status",
+                        ]
+                    )
+
+                    booking_payment.save(
+                        update_fields=[
+                            "raw_response",
+                        ]
+                    )
+                return CustomResponse().successResponse(
+                    data={},
+                    description="this is tournament payment"
+                )
+
 
             booking = booking_payment.booking
-
             booking_payment.raw_response = json.loads(raw_body)
-
             if payload.state == "COMPLETED":
-
                 print("Refund Completed")
-
                 booking.booking_status = Booking.STATUS_CANCELLED
                 booking.payment_status = Booking.PAYMENT_FAILED
-
                 booking.save(
                     update_fields=[
                         "booking_status",
