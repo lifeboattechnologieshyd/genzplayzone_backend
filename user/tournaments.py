@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 
-from db.models import Tournament, TournamentParticipant, TournamentPayment
+from db.models import Tournament, TournamentParticipant, BookingPayment
 from shared.clients.phonepe import phone_pe_initate
 from shared.utils import CustomResponse
 
@@ -313,9 +313,10 @@ class TournamentJoinAPI(APIView):
 
                     print("Creating Booking Payment...")
 
-                    payment = TournamentPayment.objects.create(
-                        participant=participant,
+                    payment = BookingPayment.objects.create(
+                        tournament_participant=participant,
                         payment_gateway="PHONEPE",
+                        type="TOURNAMENT",
                         order_id=response.order_id,
                         amount=tournament.registration_fee*100,
                         status=TournamentPayment.STATUS_PENDING,

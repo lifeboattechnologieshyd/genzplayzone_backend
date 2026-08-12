@@ -598,37 +598,29 @@ class PhonePeCallBack(APIView):
         ).first()
 
         if booking_payment is None:
-
             print("Booking Payment Not Found")
+
 
             return CustomResponse().successResponse(
                 data={},
                 description="Booking payment not found"
             )
-
         booking = booking_payment.booking
-
         print("Booking ID:", booking.id)
         print("Booking Number:", booking.booking_number)
-
         # Idempotent
         if (
             booking_payment.status == BookingPayment.STATUS_SUCCESS
             and state == "COMPLETED"
         ):
-
             print("Duplicate Webhook")
-
             return CustomResponse().successResponse(
                 data={},
                 description="Already processed"
             )
-
         transaction_id = None
-
         if getattr(payload, "payment_details", None):
             transaction_id = payload.payment_details[0].transaction_id
-
         print("Transaction ID:", transaction_id)
 
         booking_payment.order_id = gateway_order_id
