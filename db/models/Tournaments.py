@@ -170,3 +170,56 @@ class TournamentResult(AuditModel):
 
     def __str__(self):
         return f"{self.tournament} - {self.user}"
+
+
+
+class TournamentPayment(AuditModel):
+
+    STATUS_PENDING = "PENDING"
+    STATUS_SUCCESS = "SUCCESS"
+    STATUS_FAILED = "FAILED"
+    STATUS_CANCELLED = "CANCELLED"
+
+    STATUS_CHOICES = (
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SUCCESS, "Success"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_CANCELLED, "Cancelled"),
+    )
+    participant = models.OneToOneField(
+        TournamentParticipant,
+        on_delete=models.CASCADE,
+        related_name="payment"
+    )
+    payment_gateway = models.CharField(
+        max_length=50,
+        default="PHONEPE"
+    )
+    order_id = models.CharField(
+        max_length=100,
+        unique=True
+    )
+    transaction_id = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING
+    )
+    raw_response = models.JSONField(
+        blank=True,
+        null=True
+    )
+    paid_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
+    def __str__(self):
+        return self.order_id

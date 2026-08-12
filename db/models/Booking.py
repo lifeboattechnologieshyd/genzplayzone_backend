@@ -233,3 +233,4 @@ class BookingPayment(AuditModel):
     )
     def __str__(self):
         return self.order_id
+

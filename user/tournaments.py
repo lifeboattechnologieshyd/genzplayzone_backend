@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 
-from db.models import Tournament, TournamentParticipant
+from db.models import Tournament, TournamentParticipant, TournamentPayment
+from shared.clients.phonepe import phone_pe_initate
 from shared.utils import CustomResponse
 
 
@@ -210,7 +211,6 @@ class TournamentJoinAPI(APIView):
 
     @transaction.atomic
     def post(self, request, tournament_id):
-
         try:
             tournament = (
                 Tournament.objects
@@ -301,19 +301,47 @@ class TournamentJoinAPI(APIView):
                     },
                     description="Successfully joined tournament"
                 )
-            return CustomResponse.successResponse(
-                data={
-                    "participant_id": str(participant.id),
-                    "tournament_id": str(tournament.id),
-                    "payment_required": True,
-                    "amount": str(
-                        tournament.registration_fee
-                    ),
-                    "payment_status": participant.payment_status
-                },
-                description="Tournament registration initiated"
-            )
+            else:
+                response = phone_pe_initate(
+                    participant.id,
+                    tournament.registration_fee
+                )
+                print("\n========== PHONEPE RESPONSE ==========")
+                print(response)
 
+                with transaction.atomic():
+
+                    print("Creating Booking Payment...")
+
+                    payment = TournamentPayment.objects.create(
+                        participant=participant,
+                        payment_gateway="PHONEPE",
+                        order_id=response.order_id,
+                        amount=tournament.registration_fee*100,
+                        status=TournamentPayment.STATUS_PENDING,
+                        raw_response=response.__dict__,
+                    )
+                    print("Tournament Payment Created")
+                    print("Payment ID:", payment.id)
+                    print("Payment Amount:", payment.amount)
+                    print("Payment Status:", payment.status)
+                    res = {
+                        "token": response.token,
+                        "order_id": response.order_id,
+                        "state": response.state,
+                        "expire_at": response.expire_at,
+                    }
+                    print("\n========== SUCCESS RESPONSE ==========")
+                    print(res)
+                    return CustomResponse().successResponse(
+                        data={
+                            "participant_id": str(participant.id),
+                            "tournament_id": str(tournament.id),
+                            "payment_required": True,
+                            **res
+                        },
+                        description="Tournament Join created successfully"
+                    )
         except Tournament.DoesNotExist:
             return CustomResponse.errorResponse(
                 description="Tournament not found"
