@@ -183,7 +183,7 @@ class BackofficeDashboardApi(APIView):
             total_bookings = bookings.count()
 
             cancelled_bookings = bookings.filter(
-                status=Booking.STATUS_CANCELLED
+                booking_status=Booking.STATUS_CANCELLED
             ).count()
 
             # --------------------------------------------------
