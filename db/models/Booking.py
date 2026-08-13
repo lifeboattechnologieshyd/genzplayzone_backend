@@ -202,11 +202,12 @@ class BookingPayment(AuditModel):
         related_name="payment",
         null=True
     )
-    tournament_participant = models.OneToOneField(
+    tournament_participant = models.ForeignKey(
         TournamentParticipant,
         on_delete=models.CASCADE,
-        related_name="payment",
-        null=True
+        related_name="payments",
+        null=True,
+        blank=True
     )
     type = models.CharField(
         max_length=50,
