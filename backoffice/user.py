@@ -279,9 +279,7 @@ class BackofficeDashboardApi(APIView):
                     "court",
                     "sport"
                 )
-                .order_by(
-                    "start_time"
-                )
+
             )
 
             upcoming_bookings = (
@@ -296,7 +294,6 @@ class BackofficeDashboardApi(APIView):
                 )
                 .order_by(
                     "booking_date",
-                    "start_time"
                 )
             )
 
