@@ -597,7 +597,7 @@ def handle_tournament_webhook(payment, raw_body, payload):
         participant.payment_status = TournamentParticipant.PAYMENT_FAILED
         payment.status = BookingPayment.STATUS_FAILED
         participant.save(update_fields=["payment_status",])
-        participant.save(update_fields=["order_id","transaction_id","status","raw_response",])
+        payment.save(update_fields=["order_id","transaction_id","status","raw_response",])
         print("Booking Cancelled")
     # ------------------------------------------------------
     # PENDING
