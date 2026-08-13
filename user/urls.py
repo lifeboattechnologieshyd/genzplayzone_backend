@@ -7,7 +7,8 @@ from .promocode import PromoCodeAPI, ApplyPromoCodeAPI
 from .sports import SportsApi
 from .support import CreateSupportTicketAPIView, SupportTicketDetailAPIView, SendSupportMessageAPIView, \
     SubmitSupportTicketRatingAPIView
-from .tournaments import TournamentListAPI, MyTournamentListAPI, TournamentJoinAPI, TournamentParticipantsAPI
+from .tournaments import TournamentListAPI, MyTournamentListAPI, TournamentJoinAPI, TournamentParticipantsAPI, \
+    PaymentStatusAPI
 from .views import SendOtp, VerifyOTP, FileUploadView, BannersApi, ProfileApi
 
 urlpatterns = [
@@ -38,6 +39,7 @@ urlpatterns = [
     path("create-booking",BookingsApiView.as_view()),
     path("phonepe/callback", PhonePeCallBack.as_view()),
     path("payment/result", PaymentResult.as_view()),
+    path("payment/status", PaymentStatusAPI.as_view()),
     path("booking/check-in", CheckInAPI.as_view()),
     path("booking/cancel", CancelBookingAPI.as_view()),
 

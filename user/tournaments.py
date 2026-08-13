@@ -335,12 +335,74 @@ class TournamentParticipantsAPI(APIView):
                 total=len(data),
                 description="Tournament participants fetched successfully"
             )
-
         except Tournament.DoesNotExist:
             return CustomResponse.errorResponse(
                 description="Tournament not found"
             )
+        except Exception as e:
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )
 
+from rest_framework.views import APIView
+
+class PaymentStatusAPI(APIView):
+
+    def get(self, request):
+        try:
+            order_id = request.GET.get("order_id")
+            if not order_id:
+                return CustomResponse.errorResponse(
+                    description="order_id is required"
+                )
+
+            try:
+                payment = BookingPayment.objects.get(
+                    order_id=order_id
+                )
+            except BookingPayment.DoesNotExist:
+                return CustomResponse.errorResponse(
+                    description="Payment not found"
+                )
+            data = {
+                "order_id": payment.order_id,
+                "status": payment.status,
+                "amount": str(payment.amount),
+                "type": payment.type,
+            }
+            # -----------------------------------------
+            # Booking payment
+            # -----------------------------------------
+            if payment.booking:
+                data["booking_id"] = str(
+                    payment.booking.id
+                )
+                data["booking_number"] = (
+                    payment.booking.booking_number
+                )
+                data["booking_status"] = (
+                    payment.booking.booking_status
+                )
+            # -----------------------------------------
+            # Tournament payment
+            # -----------------------------------------
+            if payment.tournament_participant:
+                participant = (
+                    payment.tournament_participant
+                )
+                data["participant_id"] = str(
+                    participant.id
+                )
+                data["tournament_id"] = str(
+                    participant.tournament_id
+                )
+                data["participant_status"] = (
+                    participant.payment_status
+                )
+            return CustomResponse.successResponse(
+                data=data,
+                description="Payment status fetched successfully"
+            )
         except Exception as e:
             return CustomResponse.errorResponse(
                 description=str(e)
