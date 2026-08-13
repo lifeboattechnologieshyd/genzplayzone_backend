@@ -305,3 +305,43 @@ class TournamentJoinAPI(APIView):
         except Exception as e:
             print(e)
             return CustomResponse.errorResponse(description=str(e))
+
+
+class TournamentParticipantsAPI(APIView):
+    def get(self, request, tournament_id):
+        try:
+            tournament = Tournament.objects.get(
+                id=tournament_id
+            )
+            participants = (
+                TournamentParticipant.objects
+                .filter(
+                    tournament=tournament,
+                    payment_status=TournamentParticipant.PAYMENT_SUCCESS
+                )
+                .select_related("user")
+                .order_by("registered_at")
+            )
+            data = []
+            for participant in participants:
+                user = participant.user
+                data.append({
+                    "user_id": str(user.id),
+                    "full_name": user.full_name,
+                    "profile_image": user.profile_image,
+                })
+            return CustomResponse.successResponse(
+                data=data,
+                total=len(data),
+                description="Tournament participants fetched successfully"
+            )
+
+        except Tournament.DoesNotExist:
+            return CustomResponse.errorResponse(
+                description="Tournament not found"
+            )
+
+        except Exception as e:
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )
