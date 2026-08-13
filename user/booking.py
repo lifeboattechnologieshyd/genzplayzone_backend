@@ -8,7 +8,7 @@ from django.db import transaction
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 
-from db.models import Court, Booking, BookingSlot, CourtPricing, BookingPayment
+from db.models import Court, Booking, BookingSlot, CourtPricing, BookingPayment, TournamentParticipant
 from shared.clients.phonepe import phone_pe_initate, check_order_status, refund_phonepe, get_phonepe_client, \
     phone_pe_checkout
 from shared.clients.sms import send_sms_to_mobile
@@ -533,12 +533,14 @@ class PhonePeCallBack(APIView):
                     description="Booking payment not found"
                 )
             if booking_payment.type == 'TOURNAMENT':
+                print("TOURNAMENT Webhook")
+
                 participant = booking_payment.tournament_participant
                 booking_payment.raw_response = json.loads(raw_body)
                 booking_payment.raw_response = json.loads(raw_body)
                 if payload.state == "COMPLETED":
-                    print("Refund Completed")
-                    participant.payment_status = Booking.PAYMENT_SUCCESS
+                    print(" Completed status")
+                    participant.payment_status = TournamentParticipant.PAYMENT_SUCCESS
                     participant.save(
                         update_fields=[
                             "payment_status",
