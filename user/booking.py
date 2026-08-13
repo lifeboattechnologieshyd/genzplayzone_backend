@@ -346,6 +346,8 @@ class CheckInAPI(APIView):
 
 
 class PaymentResult(APIView):
+    permission_classes = [IsAuthenticated]
+
 
     @transaction.atomic
     def post(self, request):
