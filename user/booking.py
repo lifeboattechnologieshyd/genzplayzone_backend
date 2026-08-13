@@ -454,6 +454,174 @@ class PaymentResult(APIView):
                 },
                 description="Payment is pending"
             )
+def handle_booking_webhook(booking_payment, raw_body, payload, state):
+    booking = booking_payment.booking
+    print("Booking ID:", booking.id)
+    print("Booking Number:", booking.booking_number)
+    if booking_payment.status == BookingPayment.STATUS_SUCCESS and state == "COMPLETED":
+        print("Already in SUCCESS Status Duplicate Webhook")
+        return CustomResponse().successResponse(
+            data={},
+            description="Already processed"
+        )
+    transaction_id = None
+    if getattr(payload, "payment_details", None):
+        transaction_id = payload.payment_details[0].transaction_id
+    print("Transaction ID:", transaction_id)
+    booking_payment.order_id = payload.order_id
+    booking_payment.transaction_id = transaction_id
+    booking_payment.raw_response = json.loads(raw_body)
+    # ------------------------------------------------------
+    # SUCCESS
+    # ------------------------------------------------------
+    if state == "COMPLETED":
+        print("========== PAYMENT COMPLETED ==========")
+        booking.booking_status = Booking.STATUS_CONFIRMED
+        booking.payment_status = Booking.PAYMENT_SUCCESS
+        booking_payment.status = BookingPayment.STATUS_SUCCESS
+        booking_payment.paid_at = timezone.now()
+        booking.save(
+            update_fields=[
+                "booking_status",
+                "payment_status",
+            ]
+        )
+        booking_payment.save(
+            update_fields=[
+                "order_id",
+                "transaction_id",
+                "status",
+                "paid_at",
+                "raw_response",
+            ]
+        )
+        print("Booking Confirmed")
+    # ------------------------------------------------------
+    # FAILED
+    # ------------------------------------------------------
+    elif state == "FAILED":
+        print("========== PAYMENT FAILED ==========")
+        booking.booking_status = Booking.STATUS_CANCELLED
+        booking.payment_status = Booking.PAYMENT_FAILED
+        booking_payment.status = BookingPayment.STATUS_FAILED
+        booking.save(
+            update_fields=[
+                "booking_status",
+                "payment_status",
+            ]
+        )
+        booking_payment.save(
+            update_fields=[
+                "order_id",
+                "transaction_id",
+                "status",
+                "raw_response",
+            ]
+        )
+        print("Booking Cancelled")
+    # ------------------------------------------------------
+    # PENDING
+    # ------------------------------------------------------
+    elif state == "PENDING":
+        print("========== PAYMENT PENDING ==========")
+        booking.booking_status = Booking.STATUS_PENDING_PAYMENT
+        booking.payment_status = Booking.PAYMENT_PENDING
+        booking_payment.status = BookingPayment.STATUS_PENDING
+        booking.save(
+            update_fields=[
+                "booking_status",
+                "payment_status",
+            ]
+        )
+        booking_payment.save(
+            update_fields=[
+                "order_id",
+                "transaction_id",
+                "status",
+                "raw_response",
+            ]
+        )
+    # ------------------------------------------------------
+    # CANCELLED / OTHER
+    # ------------------------------------------------------
+    else:
+        print("========== PAYMENT CANCELLED ==========")
+        booking.booking_status = Booking.STATUS_CANCELLED
+        booking.payment_status = Booking.PAYMENT_FAILED
+        booking_payment.status = BookingPayment.STATUS_CANCELLED
+        booking.save(update_fields=["booking_status","payment_status",])
+        booking_payment.save(update_fields=["order_id","transaction_id","status","raw_response",])
+    print("========== WEBHOOK PROCESSED SUCCESSFULLY ==========")
+    return CustomResponse().successResponse(
+        data={},
+        description="Webhook processed successfully"
+    )
+
+def handle_tournament_webhook(payment, raw_body, payload):
+    if payment.type != 'TOURNAMENT':
+        return CustomResponse().successResponse(
+                data={},
+                description="Something wrong"
+            )
+    print("TOURNAMENT Webhook")
+    participant = payment.tournament_participant
+    if participant.payment_status == TournamentParticipant.PAYMENT_SUCCESS and payload.state == "COMPLETED":
+        print("Already in SUCCESS Status Duplicate Webhook")
+        return CustomResponse().successResponse(
+            data={},
+            description="Already processed"
+        )
+    transaction_id = None
+    if getattr(payload, "payment_details", None):
+        transaction_id = payload.payment_details[0].transaction_id
+    print("Transaction ID:", transaction_id)
+    payment.order_id = payload.order_id
+    payment.transaction_id = transaction_id
+    payment.raw_response = json.loads(raw_body)
+    # ------------------------------------------------------
+    # SUCCESS
+    # ------------------------------------------------------
+    if payload.state == "COMPLETED":
+        print("========== PAYMENT COMPLETED ==========")
+        participant.payment_status = TournamentParticipant.PAYMENT_SUCCESS
+        payment.status = BookingPayment.STATUS_SUCCESS
+        payment.paid_at = timezone.now()
+        participant.save(update_fields=["payment_status",])
+        payment.save(update_fields=["order_id","transaction_id","status","paid_at","raw_response"])
+        print("Booking Confirmed")
+    # ------------------------------------------------------
+    # FAILED
+    # ------------------------------------------------------
+    elif payload.state == "FAILED":
+        print("========== PAYMENT FAILED ==========")
+        participant.payment_status = TournamentParticipant.PAYMENT_FAILED
+        payment.status = BookingPayment.STATUS_FAILED
+        participant.save(update_fields=["payment_status",])
+        participant.save(update_fields=["order_id","transaction_id","status","raw_response",])
+        print("Booking Cancelled")
+    # ------------------------------------------------------
+    # PENDING
+    # ------------------------------------------------------
+    elif payload.state == "PENDING":
+        print("========== PAYMENT PENDING ==========")
+        participant.payment_status = TournamentParticipant.PAYMENT_PENDING
+        payment.status = BookingPayment.STATUS_PENDING
+        participant.save(update_fields=["payment_status",])
+        payment.save(update_fields=["order_id","transaction_id","status","raw_response", ])
+    # ------------------------------------------------------
+    # CANCELLED / OTHER
+    # ------------------------------------------------------
+    else:
+        print("========== PAYMENT CANCELLED ==========")
+        participant.payment_status = TournamentParticipant.PAYMENT_FAILED
+        payment.status = BookingPayment.STATUS_CANCELLED
+        participant.save(update_fields=["payment_status"])
+        payment.save(update_fields=["order_id", "transaction_id", "status", "raw_response", ])
+    print("========== WEBHOOK PROCESSED SUCCESSFULLY ==========")
+    return CustomResponse().successResponse(
+        data={},
+        description="Webhook processed successfully"
+    )
 
 
 class PhonePeCallBack(APIView):
@@ -464,35 +632,27 @@ class PhonePeCallBack(APIView):
     def post(self, request):
 
         print("\n========== PHONEPE WEBHOOK RECEIVED ==========")
-
         raw_body = request.body.decode("utf-8")
         auth_header = request.headers.get("Authorization")
-
         print("Authorization:", auth_header)
         print("Raw Body:", raw_body)
-
         try:
             client = get_phonepe_client()
-
             callback = client.validate_callback(
                 username="lifeboat",
                 password="Lifeboat123",
                 callback_header_data=auth_header,
                 callback_response_data=raw_body,
             )
-
             print("Webhook Validation Success")
-
         except Exception as e:
-
             print("\n========== WEBHOOK VALIDATION FAILED ==========")
             traceback.print_exc()
-
+            #todo: email log.. if any issue, admin should get an email
             return CustomResponse().successResponse(
                 data={},
                 description="Ignored"
             )
-
         # Validation callback
         if not callback.payload:
             print("Validation Callback Received")
@@ -500,274 +660,103 @@ class PhonePeCallBack(APIView):
                 data={},
                 description="Validation Success"
             )
-
         payload = callback.payload
         event = callback.event
         print("Event:", event)
-        # ======================================================
-        # REFUND EVENTS
-        # ======================================================
-        if event in (
-            "pg.refund.completed",
-            "pg.refund.failed",
-        ):
-
-            merchant_order_id = payload.original_merchant_order_id
-
-            print("Refund Event")
-            print("Original Merchant Order ID:", merchant_order_id)
-            print("Refund ID:", payload.refund_id)
-            print("Merchant Refund ID:", payload.merchant_refund_id)
-            print("State:", payload.state)
-
-            booking_payment = BookingPayment.objects.select_related(
-                "booking"
-            ).filter(
-                booking_id=merchant_order_id
-            ).first()
-
-            if booking_payment is None:
-                print("Booking Payment Not Found")
-                return CustomResponse().successResponse(
-                    data={},
-                    description="Booking payment not found"
-                )
-            if booking_payment.type == 'TOURNAMENT':
-                print("TOURNAMENT Webhook")
-
-                participant = booking_payment.tournament_participant
-                booking_payment.raw_response = json.loads(raw_body)
-                booking_payment.raw_response = json.loads(raw_body)
-                if payload.state == "COMPLETED":
-                    print(" Completed status")
-                    participant.payment_status = TournamentParticipant.PAYMENT_SUCCESS
-                    participant.save(
-                        update_fields=[
-                            "payment_status",
-                        ]
-                    )
-
-                    booking_payment.save(
-                        update_fields=[
-                            "raw_response",
-                        ]
-                    )
-                return CustomResponse().successResponse(
-                    data={},
-                    description="this is tournament payment"
-                )
-
-
-            booking = booking_payment.booking
-            booking_payment.raw_response = json.loads(raw_body)
-            if payload.state == "COMPLETED":
-                print("Refund Completed")
-                booking.booking_status = Booking.STATUS_CANCELLED
-                booking.payment_status = Booking.PAYMENT_FAILED
-                booking.save(
-                    update_fields=[
-                        "booking_status",
-                        "payment_status",
-                    ]
-                )
-
-                booking_payment.save(
-                    update_fields=[
-                        "raw_response",
-                    ]
-                )
-
-            else:
-
-                print("Refund Failed")
-
-                booking_payment.save(
-                    update_fields=[
-                        "raw_response",
-                    ]
-                )
-
-            return CustomResponse().successResponse(
-                data={},
-                description="Refund webhook processed successfully"
-            )
+        # # ======================================================
+        # # REFUND EVENTS
+        # # ======================================================
+        # if event in (
+        #     "pg.refund.completed",
+        #     "pg.refund.failed",
+        # ):
+        #
+        #     merchant_order_id = payload.original_merchant_order_id
+        #
+        #     print("Refund Event")
+        #     print("Original Merchant Order ID:", merchant_order_id)
+        #     print("Refund ID:", payload.refund_id)
+        #     print("Merchant Refund ID:", payload.merchant_refund_id)
+        #     print("State:", payload.state)
+        #
+        #     booking_payment = BookingPayment.objects.select_related(
+        #         "booking"
+        #     ).filter(
+        #         booking_id=merchant_order_id
+        #     ).first()
+        #
+        #     if booking_payment is None:
+        #         print("Booking Payment Not Found")
+        #         return CustomResponse().successResponse(
+        #             data={},
+        #             description="Booking payment not found"
+        #         )
+        #
+        #
+        #     booking = booking_payment.booking
+        #     booking_payment.raw_response = json.loads(raw_body)
+        #     if payload.state == "COMPLETED":
+        #         print("Refund Completed")
+        #         booking.booking_status = Booking.STATUS_CANCELLED
+        #         booking.payment_status = Booking.PAYMENT_FAILED
+        #         booking.save(
+        #             update_fields=[
+        #                 "booking_status",
+        #                 "payment_status",
+        #             ]
+        #         )
+        #
+        #         booking_payment.save(
+        #             update_fields=[
+        #                 "raw_response",
+        #             ]
+        #         )
+        #
+        #     else:
+        #
+        #         print("Refund Failed")
+        #
+        #         booking_payment.save(
+        #             update_fields=[
+        #                 "raw_response",
+        #             ]
+        #         )
+        #
+        #     return CustomResponse().successResponse(
+        #         data={},
+        #         description="Refund webhook processed successfully"
+        #     )
 
         # ======================================================
         # PAYMENT EVENTS
         # ======================================================
-
         merchant_order_id = payload.merchant_order_id
         gateway_order_id = payload.order_id
         state = payload.state
-
         print("Merchant Order ID:", merchant_order_id)
         print("Gateway Order ID:", gateway_order_id)
         print("State:", state)
-
         booking_payment = BookingPayment.objects.select_related(
             "booking"
         ).filter(
             booking_id=merchant_order_id
         ).first()
-
-        if booking_payment is None:
-            print("Booking Payment Not Found")
-
-
-            return CustomResponse().successResponse(
-                data={},
-                description="Booking payment not found"
-            )
-        booking = booking_payment.booking
-        print("Booking ID:", booking.id)
-        print("Booking Number:", booking.booking_number)
-        # Idempotent
-        if (
-            booking_payment.status == BookingPayment.STATUS_SUCCESS
-            and state == "COMPLETED"
-        ):
-            print("Duplicate Webhook")
-            return CustomResponse().successResponse(
-                data={},
-                description="Already processed"
-            )
-        transaction_id = None
-        if getattr(payload, "payment_details", None):
-            transaction_id = payload.payment_details[0].transaction_id
-        print("Transaction ID:", transaction_id)
-
-        booking_payment.order_id = gateway_order_id
-        booking_payment.transaction_id = transaction_id
-        booking_payment.raw_response = json.loads(raw_body)
-
-        # ------------------------------------------------------
-        # SUCCESS
-        # ------------------------------------------------------
-
-        if state == "COMPLETED":
-
-            print("========== PAYMENT COMPLETED ==========")
-
-            booking.booking_status = Booking.STATUS_CONFIRMED
-            booking.payment_status = Booking.PAYMENT_SUCCESS
-
-            booking_payment.status = BookingPayment.STATUS_SUCCESS
-            booking_payment.paid_at = timezone.now()
-
-            booking.save(
-                update_fields=[
-                    "booking_status",
-                    "payment_status",
-                ]
-            )
-
-            booking_payment.save(
-                update_fields=[
-                    "order_id",
-                    "transaction_id",
-                    "status",
-                    "paid_at",
-                    "raw_response",
-                ]
-            )
-
-            print("Booking Confirmed")
-
-        # ------------------------------------------------------
-        # FAILED
-        # ------------------------------------------------------
-
-        elif state == "FAILED":
-
-            print("========== PAYMENT FAILED ==========")
-
-            booking.booking_status = Booking.STATUS_CANCELLED
-            booking.payment_status = Booking.PAYMENT_FAILED
-
-            booking_payment.status = BookingPayment.STATUS_FAILED
-
-            booking.save(
-                update_fields=[
-                    "booking_status",
-                    "payment_status",
-                ]
-            )
-
-            booking_payment.save(
-                update_fields=[
-                    "order_id",
-                    "transaction_id",
-                    "status",
-                    "raw_response",
-                ]
-            )
-
-            print("Booking Cancelled")
-
-        # ------------------------------------------------------
-        # PENDING
-        # ------------------------------------------------------
-
-        elif state == "PENDING":
-
-            print("========== PAYMENT PENDING ==========")
-
-            booking.booking_status = Booking.STATUS_PENDING_PAYMENT
-            booking.payment_status = Booking.PAYMENT_PENDING
-
-            booking_payment.status = BookingPayment.STATUS_PENDING
-
-            booking.save(
-                update_fields=[
-                    "booking_status",
-                    "payment_status",
-                ]
-            )
-
-            booking_payment.save(
-                update_fields=[
-                    "order_id",
-                    "transaction_id",
-                    "status",
-                    "raw_response",
-                ]
-            )
-
-        # ------------------------------------------------------
-        # CANCELLED / OTHER
-        # ------------------------------------------------------
-
+        if booking_payment:
+            return handle_booking_webhook(booking_payment, raw_body, payload, state)
         else:
-
-            print("========== PAYMENT CANCELLED ==========")
-
-            booking.booking_status = Booking.STATUS_CANCELLED
-            booking.payment_status = Booking.PAYMENT_FAILED
-
-            booking_payment.status = BookingPayment.STATUS_CANCELLED
-
-            booking.save(
-                update_fields=[
-                    "booking_status",
-                    "payment_status",
-                ]
-            )
-
-            booking_payment.save(
-                update_fields=[
-                    "order_id",
-                    "transaction_id",
-                    "status",
-                    "raw_response",
-                ]
-            )
-
-        print("========== WEBHOOK PROCESSED SUCCESSFULLY ==========")
-
-        return CustomResponse().successResponse(
-            data={},
-            description="Webhook processed successfully"
-        )
+            print("will try to see tournament record")
+            payment = BookingPayment.objects.select_related(
+                "booking"
+            ).filter(
+                tournament_participant=merchant_order_id
+            ).first()
+            if payment:
+                return handle_tournament_webhook(payment, raw_body, payload)
+            else:
+                return CustomResponse().successResponse(
+                    data={},
+                    description="Booking or tournament payment not found"
+                )
 
 
 from datetime import datetime
