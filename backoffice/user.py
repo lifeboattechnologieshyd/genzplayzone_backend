@@ -120,65 +120,81 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 
+from datetime import datetime
+
+from django.db.models import Sum, Count, Q
+from django.utils import timezone
+from rest_framework.views import APIView
+from db.models import UserMaster, CourtSport
+
+
+
 class BackofficeDashboardApi(APIView):
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
         try:
-
             from_date = request.GET.get("from_date")
             to_date = request.GET.get("to_date")
 
             # --------------------------------------------------
-            # DATE FILTER
+            # DATE VALIDATION
             # --------------------------------------------------
 
-            date_filter = Q()
+            from_date_obj = None
+            to_date_obj = None
 
             if from_date:
-
                 try:
                     from_date_obj = datetime.strptime(
                         from_date,
                         "%Y-%m-%d"
                     ).date()
-
                 except ValueError:
-
                     return CustomResponse.errorResponse(
                         description="Invalid from_date. Use YYYY-MM-DD"
                     )
 
-                date_filter &= Q(
-                    booking_date__gte=from_date_obj
-                )
-
             if to_date:
-
                 try:
                     to_date_obj = datetime.strptime(
                         to_date,
                         "%Y-%m-%d"
                     ).date()
-
                 except ValueError:
-
                     return CustomResponse.errorResponse(
                         description="Invalid to_date. Use YYYY-MM-DD"
                     )
 
-                date_filter &= Q(
+            if from_date_obj and to_date_obj:
+                if from_date_obj > to_date_obj:
+                    return CustomResponse.errorResponse(
+                        description="from_date cannot be greater than to_date"
+                    )
+
+            # --------------------------------------------------
+            # BOOKING DATE FILTER
+            # --------------------------------------------------
+
+            booking_filter = Q()
+
+            if from_date_obj:
+                booking_filter &= Q(
+                    booking_date__gte=from_date_obj
+                )
+
+            if to_date_obj:
+                booking_filter &= Q(
                     booking_date__lte=to_date_obj
                 )
 
-            # --------------------------------------------------
-            # BOOKINGS
-            # --------------------------------------------------
-
             bookings = Booking.objects.filter(
-                date_filter
+                booking_filter
             )
+
+            # --------------------------------------------------
+            # SUMMARY
+            # --------------------------------------------------
 
             total_bookings = bookings.count()
 
@@ -188,56 +204,55 @@ class BackofficeDashboardApi(APIView):
 
             # --------------------------------------------------
             # REVENUE
+            #
+            # Only successful booking payments
             # --------------------------------------------------
 
-            booking_payments = BookingPayment.objects.filter(
+            successful_payments = BookingPayment.objects.filter(
                 booking__in=bookings,
                 status=BookingPayment.STATUS_SUCCESS
             )
 
-            revenue = (
-                booking_payments.aggregate(
+            total_revenue = (
+                successful_payments.aggregate(
                     total=Sum("amount")
                 )["total"] or 0
             )
 
-            # If BookingPayment.amount is stored in paise
-            revenue = float(revenue) / 100
+            # BookingPayment.amount is currently stored in paise
+            total_revenue = float(total_revenue) / 100
 
             # --------------------------------------------------
             # TOTAL USERS
+            #
+            # Date filter applies to user created_at
             # --------------------------------------------------
 
             users = UserMaster.objects.filter(
                 is_active=True
             )
 
-            if from_date or to_date:
-
-                user_date_filter = Q()
-
-                if from_date:
-                    user_date_filter &= Q(
-                        created_at__date__gte=from_date_obj
-                    )
-
-                if to_date:
-                    user_date_filter &= Q(
-                        created_at__date__lte=to_date_obj
-                    )
-
+            if from_date_obj:
                 users = users.filter(
-                    user_date_filter
+                    created_at__date__gte=from_date_obj
+                )
+
+            if to_date_obj:
+                users = users.filter(
+                    created_at__date__lte=to_date_obj
                 )
 
             total_users = users.count()
 
             # --------------------------------------------------
             # PAID USERS
+            #
+            # Unique users with successful booking payment
             # --------------------------------------------------
+
             paid_users = (
-                booking_payments
-                .values("booking__user")
+                successful_payments
+                .values("booking__user_id")
                 .distinct()
                 .count()
             )
@@ -249,121 +264,162 @@ class BackofficeDashboardApi(APIView):
             tournaments = Tournament.objects.filter(
                 status=Tournament.STATUS_COMPLETED
             )
-            if from_date:
 
+            if from_date_obj:
                 tournaments = tournaments.filter(
                     tournament_date__gte=from_date_obj
                 )
 
-            if to_date:
-
+            if to_date_obj:
                 tournaments = tournaments.filter(
                     tournament_date__lte=to_date_obj
                 )
 
             tournaments_held = tournaments.count()
 
-            # --------------------------------------------------
-            # TODAY / UPCOMING BOOKINGS
-            # --------------------------------------------------
+            # ==================================================
+            # TODAY BOOKINGS
+            # ==================================================
 
             today = timezone.localdate()
 
             today_bookings = (
                 Booking.objects
                 .filter(
-                    booking_date=today
+                    booking_date=today,
+                    booking_status__in=[
+                        Booking.STATUS_CONFIRMED,
+                        Booking.STATUS_COMPLETED
+                    ]
                 )
                 .select_related(
                     "user",
-                    "court",
-                    "sport"
+                    "court"
                 )
-
+                .prefetch_related(
+                    "slots"
+                )
+                .order_by(
+                    "booking_date",
+                    "created_at"
+                )
             )
+
+            # ==================================================
+            # UPCOMING BOOKINGS
+            # ==================================================
 
             upcoming_bookings = (
                 Booking.objects
                 .filter(
-                    booking_date__gt=today
+                    booking_date__gt=today,
+                    booking_status=Booking.STATUS_CONFIRMED
                 )
                 .select_related(
                     "user",
-                    "court",
-                    "sport"
+                    "court"
+                )
+                .prefetch_related(
+                    "slots"
                 )
                 .order_by(
                     "booking_date",
+                    "created_at"
                 )
             )
 
             # --------------------------------------------------
-            # BOOKING SERIALIZER
+            # BOOKING RESPONSE HELPER
             # --------------------------------------------------
 
-            def booking_data(booking):
+            def get_booking_data(booking):
+
+                slots = booking.slots.all()
 
                 return {
                     "id": str(booking.id),
+
                     "booking_number": booking.booking_number,
 
                     "user": {
                         "id": str(booking.user.id),
                         "name": booking.user.display_name,
-                        "profile_image": booking.user.profile_image,
+                        "profile_image": booking.user.profile_image
                     },
 
                     "court": {
                         "id": str(booking.court.id),
-                        "name": booking.court.name,
+                        "name": booking.court.name
                     },
 
-                    "sport": {
-                        "id": str(booking.sport.id),
-                        "name": booking.sport.name,
+                    "venue": {
+                        "id": str(booking.court.venue.id),
+                        "name": booking.court.venue.name
                     },
 
                     "booking_date": booking.booking_date,
-                    "start_time": booking.start_time,
-                    "end_time": booking.end_time,
 
-                    "amount": str(booking.amount),
+                    "slots": [
+                        {
+                            "start_time": slot.start_time,
+                            "end_time": slot.end_time,
+                            "price": str(slot.price)
+                        }
+                        for slot in slots
+                    ],
 
-                    "status": booking.status,
+                    "total_amount": str(
+                        booking.total_amount
+                    ),
+
+                    "payment_status": (
+                        booking.payment_status
+                    ),
+
+                    "booking_status": (
+                        booking.booking_status
+                    )
                 }
 
             today_data = [
-                booking_data(booking)
+                get_booking_data(booking)
                 for booking in today_bookings
             ]
 
             upcoming_data = [
-                booking_data(booking)
+                get_booking_data(booking)
                 for booking in upcoming_bookings
             ]
 
-            # --------------------------------------------------
-            # COURT SPECIFIC BOOKINGS
-            # --------------------------------------------------
+            # ==================================================
+            # COURT STATISTICS
+            # ==================================================
 
-            court_data = []
-
-            court_stats = (
+            court_statistics = (
                 bookings
+                .filter(
+                    booking_status__in=[
+                        Booking.STATUS_CONFIRMED,
+                        Booking.STATUS_COMPLETED
+                    ],
+                    payment_status=Booking.PAYMENT_SUCCESS
+                )
                 .values(
                     "court_id",
                     "court__name"
                 )
                 .annotate(
                     booking_count=Count("id"),
-                    total_amount=Sum("amount")
+                    total_amount=Sum("total_amount")
                 )
                 .order_by(
                     "-booking_count"
                 )
             )
 
-            for item in court_stats:
+            court_data = []
+
+            for item in court_statistics:
 
                 court_data.append({
                     "court_id": str(
@@ -379,102 +435,158 @@ class BackofficeDashboardApi(APIView):
                     )
                 })
 
-            # --------------------------------------------------
-            # SPORT SPECIFIC BOOKINGS
-            # --------------------------------------------------
+            # ==================================================
+            # SPORT STATISTICS
+            #
+            # Booking does not directly have Sport.
+            # We use CourtSport.
+            # ==================================================
 
             sport_data = []
 
-            sport_stats = (
-                bookings
-                .values(
-                    "sport_id",
-                    "sport__name"
+            court_sport_map = {}
+
+            court_sports = (
+                CourtSport.objects
+                .filter(
+                    is_active=True
                 )
-                .annotate(
-                    booking_count=Count("id"),
-                    total_amount=Sum("amount")
-                )
-                .order_by(
-                    "-booking_count"
+                .select_related(
+                    "court",
+                    "sport"
                 )
             )
 
-            for item in sport_stats:
+            for court_sport in court_sports:
 
-                sport_data.append({
-                    "sport_id": str(
-                        item["sport_id"]
+                court_id = str(
+                    court_sport.court_id
+                )
+
+                sport_data_for_court = court_sport_map.setdefault(
+                    court_id,
+                    []
+                )
+
+                sport_data_for_court.append({
+                    "id": str(
+                        court_sport.sport_id
                     ),
-
-                    "sport_name": item["sport__name"],
-
-                    "booking_count": item["booking_count"],
-
-                    "amount": str(
-                        item["total_amount"] or 0
-                    )
+                    "name": court_sport.sport.name
                 })
 
             # --------------------------------------------------
-            # FINAL RESPONSE
+            # Aggregate bookings by sport
             # --------------------------------------------------
+
+            sport_stats = {}
+
+            valid_bookings = (
+                bookings
+                .filter(
+                    booking_status__in=[
+                        Booking.STATUS_CONFIRMED,
+                        Booking.STATUS_COMPLETED
+                    ],
+                    payment_status=Booking.PAYMENT_SUCCESS
+                )
+                .select_related("court")
+            )
+
+            for booking in valid_bookings:
+
+                court_id = str(
+                    booking.court_id
+                )
+
+                sports = court_sport_map.get(
+                    court_id,
+                    []
+                )
+
+                # If a court has multiple sports,
+                # the booking cannot be uniquely assigned
+                # to one sport with the current DB structure.
+                #
+                # For now, use the first active sport.
+
+                if not sports:
+                    continue
+
+                sport = sports[0]
+
+                sport_id = sport["id"]
+
+                if sport_id not in sport_stats:
+
+                    sport_stats[sport_id] = {
+                        "sport_id": sport_id,
+                        "sport_name": sport["name"],
+                        "booking_count": 0,
+                        "amount": 0
+                    }
+
+                sport_stats[sport_id]["booking_count"] += 1
+
+                sport_stats[sport_id]["amount"] += float(
+                    booking.total_amount
+                )
+
+            sport_data = list(
+                sport_stats.values()
+            )
+
+            for item in sport_data:
+                item["amount"] = round(
+                    item["amount"],
+                    2
+                )
+
+            sport_data.sort(
+                key=lambda x: x["booking_count"],
+                reverse=True
+            )
+
+            # ==================================================
+            # FINAL RESPONSE
+            # ==================================================
 
             data = {
 
-                # ==========================================
-                # DASHBOARD SUMMARY
-                # ==========================================
-
                 "summary": {
 
-                    "total_bookings":
-                        total_bookings,
+                    "total_bookings": total_bookings,
 
-                    "total_revenue":
-                        round(revenue, 2),
+                    "total_revenue": round(
+                        total_revenue,
+                        2
+                    ),
 
-                    "cancelled_bookings":
-                        cancelled_bookings,
+                    "cancelled_bookings": cancelled_bookings,
 
-                    "total_users":
-                        total_users,
+                    "total_users": total_users,
 
-                    "paid_users":
-                        paid_users,
+                    "paid_users": paid_users,
 
-                    "tournaments_held":
-                        tournaments_held,
+                    "tournaments_held": tournaments_held
                 },
-
-                # ==========================================
-                # TODAY / UPCOMING
-                # ==========================================
 
                 "bookings": {
 
                     "today": {
                         "count": len(today_data),
-                        "data": today_data,
+                        "data": today_data
                     },
 
                     "upcoming": {
                         "count": len(upcoming_data),
-                        "data": upcoming_data,
+                        "data": upcoming_data
                     }
                 },
 
-                # ==========================================
-                # COURTS
-                # ==========================================
-
                 "court_statistics": court_data,
 
-                # ==========================================
-                # SPORTS
-                # ==========================================
-
-                "sport_statistics": sport_data,
+                "sport_statistics": sport_data
             }
 
             return CustomResponse.successResponse(
@@ -487,3 +599,5 @@ class BackofficeDashboardApi(APIView):
             return CustomResponse.errorResponse(
                 description=str(e)
             )
+
+
