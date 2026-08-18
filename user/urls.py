@@ -1,11 +1,14 @@
 from django.urls import path
 
-from .booking import BookingsApi, CourtAvailabilityApi, PhonePeCallBack, PaymentResult, CheckInAPI, CancelBookingAPI
+from .booking import BookingsApi, CourtAvailabilityApi, PhonePeCallBack, PaymentResult, CheckInAPI, CancelBookingAPI, \
+    BookingsApiView
 from .courts import CourtsApi, CourtPricingApi
 from .promocode import PromoCodeAPI, ApplyPromoCodeAPI
 from .sports import SportsApi
 from .support import CreateSupportTicketAPIView, SupportTicketDetailAPIView, SendSupportMessageAPIView, \
     SubmitSupportTicketRatingAPIView
+from .tournaments import TournamentListAPI, MyTournamentListAPI, TournamentJoinAPI, TournamentParticipantsAPI, \
+    PaymentStatusAPI
 from .views import SendOtp, VerifyOTP, FileUploadView, BannersApi, ProfileApi
 
 urlpatterns = [
@@ -22,9 +25,21 @@ urlpatterns = [
     path("promo-codes",PromoCodeAPI.as_view()),
     path("apply/promo-code",ApplyPromoCodeAPI.as_view()),
 
+    # pg flow  for app
     path("booking", BookingsApi.as_view()),
+
+
+    # tournaments
+    path("tournaments", TournamentListAPI.as_view()),
+    path("my-tournaments", MyTournamentListAPI.as_view()),
+    path("tournaments/join/<uuid:tournament_id>", TournamentJoinAPI.as_view()),
+    path("tournaments/participants/<uuid:tournament_id>", TournamentParticipantsAPI.as_view()),
+
+    # checkout flow for web
+    path("create-booking",BookingsApiView.as_view()),
     path("phonepe/callback", PhonePeCallBack.as_view()),
     path("payment/result", PaymentResult.as_view()),
+    path("payment/status", PaymentStatusAPI.as_view()),
     path("booking/check-in", CheckInAPI.as_view()),
     path("booking/cancel", CancelBookingAPI.as_view()),
 

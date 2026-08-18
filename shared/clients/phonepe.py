@@ -14,6 +14,8 @@ from phonepe.sdk.pg.env import Env
 client_secret = settings.PHONE_PE_CLIENT_SECRETE
 client_id = settings.PHONE_PE_CLIENT_ID
 client_version = settings.PHONE_PE_CLIENT_VERSION
+redirect_url = settings.PHONE_PE_REDIRECT_URL
+
 should_publish_events = False
 
 def get_phonepe_client():
@@ -48,34 +50,65 @@ def get_phonepe_client():
 
 def phone_pe_initate(order_id, total_amount):
     print("1. Entered phone_pe_initate")
-
     client = get_phonepe_client()
-
     print("2. Client initialized")
-
     unique_order_id = str(order_id)
     print("3. Merchant Order ID:", unique_order_id)
-
     amount_in_paise = int(total_amount * 100)
     print("4. Amount in paise:", amount_in_paise)
-
     meta_info = MetaInfo(udf1="onboarding")
     print("5. Meta info created")
-
     sdk_order_request = CreateSdkOrderRequest.build_standard_checkout_request(
         merchant_order_id=unique_order_id,
         amount=amount_in_paise,
         meta_info=meta_info,
         disable_payment_retry=True,
     )
-
     print("6. SDK request created")
-
     response = client.create_sdk_order(sdk_order_request)
-
     print("7. PhonePe response:", response)
-
     return response
+
+
+
+def phone_pe_checkout(order_id, total_amount):
+    print("========== PHONEPE CHECKOUT ==========")
+    client = get_phonepe_client()
+    print("PhonePe client initialized")
+    merchant_order_id = str(order_id)
+    print("Merchant Order ID:", merchant_order_id)
+    amount_in_paise = int(total_amount * 100)
+    print("Amount (Paise):", amount_in_paise)
+    meta_info = MetaInfo(
+        udf1="booking"
+    )
+    request = StandardCheckoutPayRequest.build_request(
+        merchant_order_id=merchant_order_id,
+        amount=amount_in_paise,
+        redirect_url=redirect_url,
+        meta_info=meta_info,
+        message="booking",
+        expire_after=3600,
+    )
+
+    print("========== PAY REQUEST ==========")
+    print(request)
+
+    response = client.pay(request)
+
+    print("========== PHONEPE RESPONSE ==========")
+    print(response)
+
+    checkout_response = {
+        "redirect_url": response.redirect_url,
+        "order_id": response.order_id,
+        "state": response.state,
+        "expire_at": response.expire_at,
+    }
+
+    print("Checkout Response:", checkout_response)
+
+    return checkout_response
 
 
 def check_order_status(m_order_id):

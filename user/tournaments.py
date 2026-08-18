@@ -1,0 +1,409 @@
+from rest_framework.views import APIView
+
+from db.models import Tournament, TournamentParticipant, BookingPayment
+from shared.clients.phonepe import phone_pe_initate
+from shared.utils import CustomResponse
+
+
+class TournamentListAPI(APIView):
+
+    def get(self, request):
+
+        try:
+            sport_id = request.GET.get("sport_id")
+            status_filter = request.GET.get("status")
+
+            tournaments = Tournament.objects.select_related(
+                "sport",
+                "venue"
+            ).filter(
+                status__in=[
+                    Tournament.STATUS_OPEN,
+                    Tournament.STATUS_FULL,
+                    Tournament.STATUS_ONGOING,
+                    Tournament.STATUS_COMPLETED
+                ]
+            ).order_by("-tournament_date")
+
+            # Sport filter
+            if sport_id:
+                tournaments = tournaments.filter(
+                    sport_id=sport_id
+                )
+
+            # Optional status filter
+            if status_filter:
+                tournaments = tournaments.filter(
+                    status=status_filter
+                )
+
+            data = []
+
+            for tournament in tournaments:
+                # Check current user's registration
+                is_joined = tournament.participants.filter(
+                    user=request.user,
+                    payment_status=(
+                        TournamentParticipant.PAYMENT_SUCCESS
+                    )
+                ).exists()
+
+                registered_count = (
+                    tournament.registered_participants_count
+                )
+
+                remaining_slots = max(
+                    tournament.max_participants - registered_count,
+                    0
+                )
+
+                data.append({
+                    "id": str(tournament.id),
+
+                    "name": tournament.name,
+
+                    "sport": {
+                        "id": str(tournament.sport.id),
+                        "name": tournament.sport.name,
+                        "icon": tournament.sport.icon,
+                        "image": tournament.sport.image
+                    },
+
+                    "venue": {
+                        "id": str(tournament.venue.id),
+                        "name": tournament.venue.name,
+                        "address": tournament.venue.address
+                    },
+                    "banner": tournament.banner,
+                    "tournament_date": (
+                        tournament.tournament_date
+                    ),
+                    "registration_deadline": (
+                        tournament.registration_deadline
+                    ),
+                    "registration_fee": str(
+                        tournament.registration_fee
+                    ),
+                    "prize_pool": str(
+                        tournament.prize_pool
+                    ),
+                    "max_participants": (
+                        tournament.max_participants
+                    ),
+                    "registered_participants": (
+                        registered_count
+                    ),
+                    "remaining_slots": (
+                        remaining_slots
+                    ),
+                    "status": tournament.status,
+                    "is_joined": is_joined
+                })
+
+            return CustomResponse.successResponse(
+                data=data,
+                total=len(data),
+                description="Tournaments fetched successfully"
+            )
+
+        except Exception as e:
+
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )
+
+
+class MyTournamentListAPI(APIView):
+
+    def get(self, request):
+
+        try:
+            status_filter = request.GET.get("status")
+            participants = TournamentParticipant.objects.filter(
+                user=request.user
+            ).select_related(
+                "tournament",
+                "tournament__sport",
+                "tournament__venue"
+            ).order_by(
+                "-registered_at"
+            )
+
+            if status_filter:
+                participants = participants.filter(
+                    tournament__status=status_filter
+                )
+
+            data = []
+
+            for participant in participants:
+                tournament = participant.tournament
+                result = getattr(
+                    participant,
+                    "result",
+                    None
+                )
+
+                item = {
+                    "id": str(tournament.id),
+
+                    "name": tournament.name,
+
+                    "sport": {
+                        "id": str(tournament.sport.id),
+                        "name": tournament.sport.name
+                    },
+
+                    "venue": {
+                        "id": str(tournament.venue.id),
+                        "name": tournament.venue.name
+                    },
+
+                    "banner": tournament.banner,
+
+                    "tournament_date": (
+                        tournament.tournament_date
+                    ),
+
+                    "registration_fee": str(
+                        tournament.registration_fee
+                    ),
+
+                    "status": tournament.status,
+
+                    "payment_status": (
+                        participant.payment_status
+                    ),
+
+                    "registered_at": (
+                        participant.registered_at
+                    )
+                }
+
+                # Result available only after completion
+                if result:
+                    d = {
+                        "rank": result.rank,
+                        "points": result.points,
+                        "prize_amount": str(result.prize_amount)
+                    }
+                    item["result"] = d
+                else:
+                    item["result"] = None
+                data.append(item)
+            return CustomResponse.successResponse(
+                data=data,
+                total=len(data),
+                description="My tournaments fetched successfully"
+            )
+
+        except Exception as e:
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )
+
+
+from django.db import transaction
+from django.utils import timezone
+from rest_framework.views import APIView
+
+class TournamentJoinAPI(APIView):
+
+    @transaction.atomic
+    def post(self, request, tournament_id):
+        try:
+            tournament = Tournament.objects.select_for_update().get(id=tournament_id)
+            if tournament.status != Tournament.STATUS_OPEN:
+                return CustomResponse.errorResponse(
+                    description="Tournament is not open for registration"
+                )
+            if timezone.now() >= tournament.registration_deadline:
+                return CustomResponse.errorResponse(
+                    description="Tournament registration is closed"
+                )
+            registered_count = TournamentParticipant.objects.filter(
+                tournament=tournament,
+                payment_status=(
+                    TournamentParticipant.PAYMENT_SUCCESS
+                )
+            ).count()
+            if registered_count >= tournament.max_participants:
+                tournament.status = Tournament.STATUS_FULL
+                tournament.save()
+                return CustomResponse.errorResponse(
+                    description="Tournament is full"
+                )
+            participant = TournamentParticipant.objects.filter(tournament=tournament,user=request.user).first()
+            if participant:
+                if participant.payment_status == TournamentParticipant.PAYMENT_SUCCESS:
+                    return CustomResponse.errorResponse(
+                        description="You have already joined this tournament"
+                    )
+                if participant.payment_status == TournamentParticipant.PAYMENT_PENDING:
+                    return CustomResponse.errorResponse(
+                        description="You already have a pending payment"
+                    )
+                participant.payment_status = TournamentParticipant.PAYMENT_PENDING
+            else:
+                participant = TournamentParticipant.objects.create(
+                    tournament=tournament,
+                    user=request.user,
+                    payment_status=(
+                        TournamentParticipant.PAYMENT_PENDING
+                    )
+                )
+            if tournament.registration_fee <= 0:
+                participant.payment_status = TournamentParticipant.PAYMENT_SUCCESS
+                participant.payment_reference = f"FREE-{participant.id}"
+                participant.save()
+                return CustomResponse.successResponse(
+                    data={
+                        "participant_id": str(participant.id),
+                        "tournament_id": str(tournament.id),
+                        "payment_required": False
+                    },
+                    description="Successfully joined tournament"
+                )
+            else:
+                response = phone_pe_initate(participant.id,tournament.registration_fee)
+                print("\n========== PHONEPE RESPONSE ==========")
+                print(response)
+                with transaction.atomic():
+                    print("Creating Booking Payment...")
+                    payment = BookingPayment.objects.create(
+                        tournament_participant=participant,
+                        payment_gateway="PHONEPE",
+                        type="TOURNAMENT",
+                        order_id=response.order_id,
+                        amount=tournament.registration_fee*100,
+                        status=BookingPayment.STATUS_PENDING,
+                        raw_response=response.__dict__,
+                    )
+                    print("Tournament Payment Created")
+                    print("Payment ID:", payment.id)
+                    print("Payment Amount:", payment.amount)
+                    print("Payment Status:", payment.status)
+                    res = {
+                        "token": response.token,
+                        "order_id": response.order_id,
+                        "state": response.state,
+                        "expire_at": response.expire_at,
+                    }
+                    print("\n========== SUCCESS RESPONSE ==========")
+                    print(res)
+                    return CustomResponse().successResponse(
+                        data={
+                            "participant_id": str(participant.id),
+                            "tournament_id": str(tournament.id),
+                            "payment_required": True,
+                            **res
+                        },
+                        description="Tournament Join created successfully"
+                    )
+        except Tournament.DoesNotExist:
+            return CustomResponse.errorResponse(description="Tournament not found")
+        except Exception as e:
+            print(e)
+            return CustomResponse.errorResponse(description=str(e))
+
+
+class TournamentParticipantsAPI(APIView):
+    def get(self, request, tournament_id):
+        try:
+            tournament = Tournament.objects.get(
+                id=tournament_id
+            )
+            participants = (
+                TournamentParticipant.objects
+                .filter(
+                    tournament=tournament,
+                    payment_status=TournamentParticipant.PAYMENT_SUCCESS
+                )
+                .select_related("user")
+                .order_by("registered_at")
+            )
+            data = []
+            for participant in participants:
+                user = participant.user
+                data.append({
+                    "user_id": str(user.id),
+                    "full_name": user.full_name,
+                    "profile_image": user.profile_image,
+                })
+            return CustomResponse.successResponse(
+                data=data,
+                total=len(data),
+                description="Tournament participants fetched successfully"
+            )
+        except Tournament.DoesNotExist:
+            return CustomResponse.errorResponse(
+                description="Tournament not found"
+            )
+        except Exception as e:
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )
+
+from rest_framework.views import APIView
+
+class PaymentStatusAPI(APIView):
+
+    def get(self, request):
+        try:
+            order_id = request.GET.get("order_id")
+            if not order_id:
+                return CustomResponse.errorResponse(
+                    description="order_id is required"
+                )
+
+            try:
+                payment = BookingPayment.objects.get(
+                    order_id=order_id
+                )
+            except BookingPayment.DoesNotExist:
+                return CustomResponse.errorResponse(
+                    description="Payment not found"
+                )
+            data = {
+                "order_id": payment.order_id,
+                "status": payment.status,
+                "amount": str(payment.amount),
+                "type": payment.type,
+            }
+            # -----------------------------------------
+            # Booking payment
+            # -----------------------------------------
+            if payment.booking:
+                data["booking_id"] = str(
+                    payment.booking.id
+                )
+                data["booking_number"] = (
+                    payment.booking.booking_number
+                )
+                data["booking_status"] = (
+                    payment.booking.booking_status
+                )
+            # -----------------------------------------
+            # Tournament payment
+            # -----------------------------------------
+            if payment.tournament_participant:
+                participant = (
+                    payment.tournament_participant
+                )
+                data["participant_id"] = str(
+                    participant.id
+                )
+                data["tournament_id"] = str(
+                    participant.tournament_id
+                )
+                data["participant_status"] = (
+                    participant.payment_status
+                )
+            return CustomResponse.successResponse(
+                data=data,
+                description="Payment status fetched successfully"
+            )
+        except Exception as e:
+            return CustomResponse.errorResponse(
+                description=str(e)
+            )

@@ -1,5 +1,5 @@
 from django.db import models
-from db.models import AuditModel, UserMaster, Court
+from db.models import AuditModel, UserMaster, Court, TournamentParticipant
 
 
 class Booking(AuditModel):
@@ -199,7 +199,19 @@ class BookingPayment(AuditModel):
     booking = models.OneToOneField(
         Booking,
         on_delete=models.CASCADE,
-        related_name="payment"
+        related_name="payment",
+        null=True
+    )
+    tournament_participant = models.ForeignKey(
+        TournamentParticipant,
+        on_delete=models.CASCADE,
+        related_name="payments",
+        null=True,
+        blank=True
+    )
+    type = models.CharField(
+        max_length=50,
+        default="BOOKING"
     )
     payment_gateway = models.CharField(
         max_length=50,
@@ -233,3 +245,4 @@ class BookingPayment(AuditModel):
     )
     def __str__(self):
         return self.order_id
+
