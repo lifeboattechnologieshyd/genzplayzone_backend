@@ -44,6 +44,7 @@ urlpatterns = [
     path("court-pricing", CourtPricingsApi.as_view()),
     path("court-pricing/<uuid:pricing_id>", CourtPricingsApi.as_view()),
     path("promo-codes", PromocodeApi.as_view()),
+    path("promo-codes/<uuid:promo_code_id>", PromocodeApi.as_view()),
     path("bookings", BackofficeBookingListApi.as_view()),
     path("available-slots", CourtAvailabilityApi.as_view()),
     path("users", BackofficeUsersApi.as_view()),

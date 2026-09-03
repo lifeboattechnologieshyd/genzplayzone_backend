@@ -120,3 +120,129 @@ class PromocodeApi(APIView):
             },
             description="Promo codes fetched successfully."
         )
+
+    def put(self, request, promo_code_id):
+        try:
+            promo_code = PromoCode.objects.filter(
+                id=promo_code_id
+            ).first()
+
+            if not promo_code:
+                return CustomResponse().errorResponse(
+                    data={},
+                    description="Promo code not found."
+                )
+
+            code = request.data.get("code")
+
+            if code is not None:
+                code = code.strip().upper()
+
+                if not code:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="Promo code is required."
+                    )
+
+                if PromoCode.objects.filter(
+                        code=code
+                ).exclude(
+                    id=promo_code.id
+                ).exists():
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="This promo code already exists."
+                    )
+
+                promo_code.code = code
+
+            if "discount_amount" in request.data:
+                promo_code.discount_amount = parse_decimal(
+                    request.data.get("discount_amount"),
+                    "Discount amount"
+                )
+
+            if "minimum_booking_amount" in request.data:
+                promo_code.minimum_booking_amount = parse_decimal(
+                    request.data.get("minimum_booking_amount"),
+                    "Minimum booking amount",
+                    allow_zero=True
+                )
+
+            if "valid_from" in request.data:
+                promo_code.valid_from = parse_promo_datetime(
+                    request.data.get("valid_from"),
+                    "valid from date"
+                )
+
+            if "valid_until" in request.data:
+                promo_code.valid_until = parse_promo_datetime(
+                    request.data.get("valid_until"),
+                    "valid until date"
+                )
+
+            if promo_code.valid_until <= promo_code.valid_from:
+                return CustomResponse().errorResponse(
+                    data={},
+                    description="Valid until date must be after valid from date."
+                )
+
+            if "total_usage_limit" in request.data:
+                total_usage_limit = request.data.get(
+                    "total_usage_limit"
+                )
+
+                if total_usage_limit in [None, ""]:
+                    promo_code.total_usage_limit = None
+                else:
+                    total_usage_limit = int(total_usage_limit)
+
+                    if total_usage_limit <= 0:
+                        return CustomResponse().errorResponse(
+                            data={},
+                            description="Total usage limit must be greater than zero."
+                        )
+
+                    promo_code.total_usage_limit = total_usage_limit
+
+            if "per_user_usage_limit" in request.data:
+                per_user_usage_limit = request.data.get(
+                    "per_user_usage_limit"
+                )
+
+                if per_user_usage_limit in [None, ""]:
+                    promo_code.per_user_usage_limit = None
+                else:
+                    per_user_usage_limit = int(per_user_usage_limit)
+
+                    if per_user_usage_limit <= 0:
+                        return CustomResponse().errorResponse(
+                            data={},
+                            description="Per-user usage limit must be greater than zero."
+                        )
+
+                    promo_code.per_user_usage_limit = per_user_usage_limit
+
+            if "is_active" in request.data:
+                promo_code.is_active = request.data.get("is_active")
+
+            promo_code.save()
+
+            return CustomResponse().successResponse(
+                data={
+                    "promo_code": get_promo_data(promo_code)
+                },
+                description="Promo code updated successfully."
+            )
+
+        except (ValueError, TypeError) as exc:
+            return CustomResponse().errorResponse(
+                data={},
+                description=str(exc)
+            )
+
+        except Exception as exc:
+            return CustomResponse().errorResponse(
+                data={},
+                description=str(exc)
+            )
