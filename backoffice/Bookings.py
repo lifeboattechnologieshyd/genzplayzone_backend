@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 
 from db.models import Court, Booking, BookingSlot, BookingPayment, UserMaster, CourtPricing
-from shared.clients.phonepe import phone_pe_checkout
+from shared.clients.phonepe import phone_pe_checkout, refund_phonepe
 from shared.utils import CustomResponse, validate_booking_datetime, check_slot_availability, calculate_booking_amount, \
     generate_booking_number, generate_slots
 
@@ -399,6 +399,175 @@ class CourtAvailabilityApi(APIView):
         )
 
 
+class BackofficeBookingCancelApi(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, booking_id):
+
+        reason = request.data.get("reason", "").strip()
+
+        if not reason:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Cancellation reason is required."
+            )
+
+        try:
+            # -----------------------------------------
+            # Get ONE specific booking
+            # -----------------------------------------
+            booking = (
+                Booking.objects
+                .select_related("user", "court")
+                .select_for_update()
+                .get(id=booking_id)
+            )
+
+        except Booking.DoesNotExist:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Booking not found."
+            )
+
+        # -----------------------------------------
+        # Check booking status
+        # -----------------------------------------
+        if booking.booking_status == Booking.STATUS_CANCELLED:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Booking is already cancelled."
+            )
+
+        if booking.booking_status != Booking.STATUS_CONFIRMED:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Only confirmed bookings can be cancelled."
+            )
+
+        # -----------------------------------------
+        # Get successful payment
+        # -----------------------------------------
+        payment = (
+            BookingPayment.objects
+            .filter(
+                booking=booking,
+                status=BookingPayment.STATUS_SUCCESS
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not payment:
+            return CustomResponse().errorResponse(
+                data={},
+                description="Successful payment not found for this booking."
+            )
+
+        # -----------------------------------------
+        # Check payment gateway
+        # -----------------------------------------
+        if payment.payment_gateway != "PHONEPE":
+            return CustomResponse().errorResponse(
+                data={},
+                description="Refund is supported only for PhonePe payments."
+            )
+
+        # -----------------------------------------
+        # Refund amount
+        # -----------------------------------------
+        refund_amount = booking.total_amount
+
+        try:
+
+            # -----------------------------------------
+            # Initiate PhonePe refund
+            # -----------------------------------------
+            refund_response = refund_phonepe(
+                payment.order_id,
+                refund_amount
+            )
+
+            print("PhonePe Refund Response:", refund_response)
+
+        except Exception as exc:
+
+            traceback.print_exc()
+
+            return CustomResponse().errorResponse(
+                data={},
+                description=f"Refund initiation failed: {str(exc)}"
+            )
 
 
+
+        refund_state = getattr(
+            refund_response,
+            "state",
+            None
+        )
+
+        if refund_state == "COMPLETED":
+            refund_status = Booking.REFUND_SUCCESS
+            payment_status = Booking.PAYMENT_REFUNDED
+
+        elif refund_state in ["PENDING", "PROCESSING"]:
+            refund_status = Booking.REFUND_PENDING
+            payment_status = Booking.PAYMENT_SUCCESS
+
+        else:
+            refund_status = Booking.REFUND_FAILED
+            payment_status = Booking.PAYMENT_SUCCESS
+
+        # -----------------------------------------
+        # Update booking
+        # -----------------------------------------
+
+        try:
+
+            with transaction.atomic():
+
+                booking.booking_status = Booking.STATUS_CANCELLED
+                booking.cancelled_at = timezone.now()
+                booking.cancelled_by = request.user
+                booking.cancellation_reason = reason
+                booking.refund_amount = refund_amount
+                booking.refund_status = refund_status
+                booking.payment_status = payment_status
+
+                booking.save(
+                    update_fields=[
+                        "booking_status",
+                        "cancelled_at",
+                        "cancelled_by",
+                        "cancellation_reason",
+                        "refund_amount",
+                        "refund_status",
+                        "payment_status",
+                    ]
+                )
+
+        except Exception as exc:
+
+            traceback.print_exc()
+
+            return CustomResponse().errorResponse(
+                data={},
+                description=str(exc)
+            )
+
+        return CustomResponse().successResponse(
+            data={
+                "booking_id": str(booking.id),
+                "booking_number": booking.booking_number,
+                "customer_name": booking.user.full_name,
+                "booking_status": booking.booking_status,
+                "payment_status": booking.payment_status,
+                "refund_amount": booking.refund_amount,
+                "refund_status": booking.refund_status,
+                "cancellation_reason": booking.cancellation_reason,
+                "cancelled_at": booking.cancelled_at,
+            },
+            description="Booking cancelled successfully."
+        )
 
