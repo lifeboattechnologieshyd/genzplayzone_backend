@@ -668,66 +668,66 @@ class PhonePeCallBack(APIView):
         # # ======================================================
         # # REFUND EVENTS
         # # ======================================================
-        # if event in (
-        #     "pg.refund.completed",
-        #     "pg.refund.failed",
-        # ):
-        #
-        #     merchant_order_id = payload.original_merchant_order_id
-        #
-        #     print("Refund Event")
-        #     print("Original Merchant Order ID:", merchant_order_id)
-        #     print("Refund ID:", payload.refund_id)
-        #     print("Merchant Refund ID:", payload.merchant_refund_id)
-        #     print("State:", payload.state)
-        #
-        #     booking_payment = BookingPayment.objects.select_related(
-        #         "booking"
-        #     ).filter(
-        #         booking_id=merchant_order_id
-        #     ).first()
-        #
-        #     if booking_payment is None:
-        #         print("Booking Payment Not Found")
-        #         return CustomResponse().successResponse(
-        #             data={},
-        #             description="Booking payment not found"
-        #         )
-        #
-        #
-        #     booking = booking_payment.booking
-        #     booking_payment.raw_response = json.loads(raw_body)
-        #     if payload.state == "COMPLETED":
-        #         print("Refund Completed")
-        #         booking.booking_status = Booking.STATUS_CANCELLED
-        #         booking.payment_status = Booking.PAYMENT_FAILED
-        #         booking.save(
-        #             update_fields=[
-        #                 "booking_status",
-        #                 "payment_status",
-        #             ]
-        #         )
-        #
-        #         booking_payment.save(
-        #             update_fields=[
-        #                 "raw_response",
-        #             ]
-        #         )
-        #
-        #     else:
-        #
-        #         print("Refund Failed")
-        #
-        #         booking_payment.save(
-        #             update_fields=[
-        #                 "raw_response",
-        #             ]
-        #         )
-        #
-        #     return CustomResponse().successResponse(
-        #         data={},
-        #         description="Refund webhook processed successfully"
-        #     )
+        if event in (
+            "pg.refund.completed",
+            "pg.refund.failed",
+        ):
+
+            merchant_order_id = payload.original_merchant_order_id
+
+            print("Refund Event")
+            print("Original Merchant Order ID:", merchant_order_id)
+            print("Refund ID:", payload.refund_id)
+            print("Merchant Refund ID:", payload.merchant_refund_id)
+            print("State:", payload.state)
+
+            booking_payment = BookingPayment.objects.select_related(
+                "booking"
+            ).filter(
+                booking_id=merchant_order_id
+            ).first()
+
+            if booking_payment is None:
+                print("Booking Payment Not Found")
+                return CustomResponse().successResponse(
+                    data={},
+                    description="Booking payment not found"
+                )
+
+
+            booking = booking_payment.booking
+            booking_payment.raw_response = json.loads(raw_body)
+            if payload.state == "COMPLETED":
+                print("Refund Completed")
+                booking.booking_status = Booking.STATUS_CANCELLED
+                booking.payment_status = Booking.PAYMENT_FAILED
+                booking.save(
+                    update_fields=[
+                        "booking_status",
+                        "payment_status",
+                    ]
+                )
+
+                booking_payment.save(
+                    update_fields=[
+                        "raw_response",
+                    ]
+                )
+
+            else:
+
+                print("Refund Failed")
+
+                booking_payment.save(
+                    update_fields=[
+                        "raw_response",
+                    ]
+                )
+
+            return CustomResponse().successResponse(
+                data={},
+                description="Refund webhook processed successfully"
+            )
 
         # ======================================================
         # PAYMENT EVENTS
