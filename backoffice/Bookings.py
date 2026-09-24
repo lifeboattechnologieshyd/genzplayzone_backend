@@ -414,126 +414,78 @@ class BackofficeBookingCancelApi(APIView):
             )
 
         try:
-            # -----------------------------------------
-            # Get ONE specific booking
-            # -----------------------------------------
-            booking = (
-                Booking.objects
-                .select_related("user", "court")
-                .select_for_update()
-                .get(id=booking_id)
-            )
-
-        except Booking.DoesNotExist:
-            return CustomResponse().errorResponse(
-                data={},
-                description="Booking not found."
-            )
-
-        # -----------------------------------------
-        # Check booking status
-        # -----------------------------------------
-        if booking.booking_status == Booking.STATUS_CANCELLED:
-            return CustomResponse().errorResponse(
-                data={},
-                description="Booking is already cancelled."
-            )
-
-        if booking.booking_status != Booking.STATUS_CONFIRMED:
-            return CustomResponse().errorResponse(
-                data={},
-                description="Only confirmed bookings can be cancelled."
-            )
-
-        # -----------------------------------------
-        # Get successful payment
-        # -----------------------------------------
-        payment = (
-            BookingPayment.objects
-            .filter(
-                booking=booking,
-                status=BookingPayment.STATUS_SUCCESS
-            )
-            .order_by("-created_at")
-            .first()
-        )
-
-        if not payment:
-            return CustomResponse().errorResponse(
-                data={},
-                description="Successful payment not found for this booking."
-            )
-
-        # -----------------------------------------
-        # Check payment gateway
-        # -----------------------------------------
-        if payment.payment_gateway != "PHONEPE":
-            return CustomResponse().errorResponse(
-                data={},
-                description="Refund is supported only for PhonePe payments."
-            )
-
-        # -----------------------------------------
-        # Refund amount
-        # -----------------------------------------
-        refund_amount = booking.total_amount
-
-        try:
-
-            # -----------------------------------------
-            # Initiate PhonePe refund
-            # -----------------------------------------
-            refund_response = refund_phonepe(
-                payment.order_id,
-                refund_amount
-            )
-
-            print("PhonePe Refund Response:", refund_response)
-
-        except Exception as exc:
-
-            traceback.print_exc()
-
-            return CustomResponse().errorResponse(
-                data={},
-                description=f"Refund initiation failed: {str(exc)}"
-            )
-
-
-
-        refund_state = getattr(
-            refund_response,
-            "state",
-            None
-        )
-
-        if refund_state == "COMPLETED":
-            refund_status = Booking.REFUND_SUCCESS
-            payment_status = Booking.PAYMENT_REFUNDED
-
-        elif refund_state in ["PENDING", "PROCESSING"]:
-            refund_status = Booking.REFUND_PENDING
-            payment_status = Booking.PAYMENT_SUCCESS
-
-        else:
-            refund_status = Booking.REFUND_FAILED
-            payment_status = Booking.PAYMENT_SUCCESS
-
-        # -----------------------------------------
-        # Update booking
-        # -----------------------------------------
-
-        try:
 
             with transaction.atomic():
+
+
+                booking = (
+                    Booking.objects
+                    .select_related("user", "court")
+                    .select_for_update()
+                    .filter(id=booking_id)
+                    .first()
+                )
+
+                if not booking:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="Booking not found."
+                    )
+
+
+                if booking.booking_status == Booking.STATUS_CANCELLED:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="Booking is already cancelled."
+                    )
+
+                if booking.booking_status != Booking.STATUS_CONFIRMED:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description="Only confirmed bookings can be cancelled."
+                    )
+
+
+                payment = (
+                    BookingPayment.objects
+                    .filter(
+                        booking=booking,
+                        status=BookingPayment.STATUS_SUCCESS,
+                    )
+                    .first()
+                )
+
+                if not payment:
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description=(
+                            "Successful payment not found for this booking."
+                        )
+                    )
+
+
+                if payment.payment_gateway != "PHONEPE":
+                    return CustomResponse().errorResponse(
+                        data={},
+                        description=(
+                            "Refund is supported only for PhonePe payments."
+                        )
+                    )
+
+
+                refund_amount = booking.total_amount
+
 
                 booking.booking_status = Booking.STATUS_CANCELLED
                 booking.cancelled_at = timezone.now()
                 booking.cancelled_by = request.user
                 booking.cancellation_reason = reason
+
                 booking.refund_amount = refund_amount
-                booking.refund_status = refund_status
-                booking.payment_status = payment_status
+                booking.refund_status = Booking.REFUND_PENDING
+
+
+                booking.payment_status = Booking.PAYMENT_SUCCESS
 
                 booking.save(
                     update_fields=[
@@ -547,14 +499,53 @@ class BackofficeBookingCancelApi(APIView):
                     ]
                 )
 
-        except Exception as exc:
+                payment_order_id = payment.order_id
 
+        except Exception as exc:
             traceback.print_exc()
 
             return CustomResponse().errorResponse(
                 data={},
-                description=str(exc)
+                description=f"Unable to cancel booking. {str(exc)}"
             )
+
+
+        try:
+
+            print(
+                f"Initiating PhonePe refund: "
+                f"order_id={payment_order_id}, "
+                f"amount={refund_amount}"
+            )
+
+            refund_response = refund_phonepe(
+                payment_order_id,
+                refund_amount
+            )
+
+            print(
+                "PhonePe Refund Response:",
+                refund_response
+            )
+
+        except Exception as exc:
+
+            traceback.print_exc()
+
+
+            return CustomResponse().errorResponse(
+                data={
+                    "booking_id": str(booking.id),
+                    "booking_number": booking.booking_number,
+                    "refund_amount": str(refund_amount),
+                    "refund_status": booking.refund_status,
+                },
+                description=(
+                    f"Booking cancelled, but refund initiation failed: "
+                    f"{str(exc)}"
+                )
+            )
+
 
         return CustomResponse().successResponse(
             data={
@@ -563,11 +554,14 @@ class BackofficeBookingCancelApi(APIView):
                 "customer_name": booking.user.full_name,
                 "booking_status": booking.booking_status,
                 "payment_status": booking.payment_status,
-                "refund_amount": booking.refund_amount,
+                "refund_amount": str(booking.refund_amount),
                 "refund_status": booking.refund_status,
                 "cancellation_reason": booking.cancellation_reason,
                 "cancelled_at": booking.cancelled_at,
             },
-            description="Booking cancelled successfully."
+            description=(
+                "Booking cancelled successfully. "
+                "Refund has been initiated and will be updated "
+                "after PhonePe confirmation."
+            )
         )
-

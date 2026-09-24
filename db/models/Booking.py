@@ -1,5 +1,6 @@
 from django.db import models
 from db.models import AuditModel, UserMaster, Court, TournamentParticipant
+from db.models.promocode import PromoCode
 
 
 class Booking(AuditModel):
@@ -55,6 +56,19 @@ class Booking(AuditModel):
         Court,
         on_delete=models.CASCADE,
         related_name="bookings"
+    )
+    promo_code = models.ForeignKey(
+        PromoCode,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bookings"
+    )
+
+    discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
     )
 
     booking_date = models.DateField()

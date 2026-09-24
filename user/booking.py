@@ -13,7 +13,7 @@ from shared.clients.phonepe import phone_pe_initate, check_order_status, refund_
     phone_pe_checkout
 from shared.clients.sms import send_sms_to_mobile
 from shared.utils import CustomResponse, check_slot_availability, calculate_booking_amount, generate_booking_number, \
-    validate_booking_datetime, generate_slots
+    validate_booking_datetime, generate_slots, get_promo_preview
 
 
 class BookingsApi(APIView):
@@ -27,10 +27,14 @@ class BookingsApi(APIView):
         court_id = request.data.get("court_id")
         booking_date = request.data.get("booking_date")
         slots = request.data.get("slots", [])
+        promo_code_value = request.data.get("promo_code")
+
 
         print("Court ID:", court_id)
         print("Booking Date:", booking_date)
         print("Slots:", slots)
+        print("Promo Code:", promo_code_value)
+
 
         if not court_id:
             return CustomResponse().errorResponse(
@@ -94,15 +98,53 @@ class BookingsApi(APIView):
 
                 print("Calculating Booking Amount...")
 
-                total_amount, slot_prices = calculate_booking_amount(
+                subtotal_amount, slot_prices = calculate_booking_amount(
                     court,
                     booking_date,
                     slots
                 )
 
-                print("Total Amount:", total_amount)
-                print("Amount Type:", type(total_amount))
+                print("Subtotal Amount:",subtotal_amount)
+                print("Subtotal  Amount Type:", type(subtotal_amount))
                 print("Slot Prices:", slot_prices)
+
+                discount_amount = Decimal("0.00")
+                promo_code = None
+
+                if promo_code_value:
+                    print(
+                        "Applying promo code:",
+                        promo_code_value
+                    )
+
+                    promo_code, discount_amount = (
+                        get_promo_preview(
+                            promo_code_value=promo_code_value,
+                            user=request.user,
+                            subtotal_amount=subtotal_amount
+                        )
+                    )
+
+                    print("Promo Code:",promo_code.code)
+
+                    print("Discount:",discount_amount)
+
+                # -----------------------------------------
+                # Calculate final amount
+                # -----------------------------------------
+
+                total_amount = (
+                        subtotal_amount - discount_amount
+                )
+
+                # Safety check
+                if total_amount < Decimal("0.00"):
+                    total_amount = Decimal("0.00")
+
+                print(
+                    "Final Booking Amount:",
+                    total_amount
+                )
 
                 print("Creating Booking...")
 
@@ -112,6 +154,8 @@ class BookingsApi(APIView):
                     court=court,
                     booking_date=booking_date,
                     total_amount=total_amount,
+                    promo_code=promo_code,
+                    discount_amount=discount_amount,
                     booking_status=Booking.STATUS_PENDING_PAYMENT,
                     payment_status=Booking.PAYMENT_PENDING,
                     expires_at=timezone.now() + timedelta(minutes=10),
@@ -198,6 +242,12 @@ class BookingsApi(APIView):
                         "booking_id": str(booking.id),
                         "booking_number": booking.booking_number,
                         "total_amount": booking.total_amount,
+                        "subtotal_amount": str( subtotal_amount),
+                        "discount_amount": str(discount_amount),
+                        "promo_code": (promo_code.code
+                            if promo_code
+                            else None
+                        ),
                         **res
                     },
                     description="Booking created successfully"
