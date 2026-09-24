@@ -519,7 +519,7 @@ class BackofficeBookingCancelApi(APIView):
             )
 
             refund_response = refund_phonepe(
-                payment_order_id,
+                booking.id,
                 refund_amount
             )
 
