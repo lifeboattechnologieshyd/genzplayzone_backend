@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 
 from db.models import Court, Booking, BookingSlot, CourtPricing, BookingPayment, TournamentParticipant
+from db.models.promocode import PromoCodeUsage
 from shared.clients.phonepe import phone_pe_initate, check_order_status, refund_phonepe, get_phonepe_client, \
     phone_pe_checkout
 from shared.clients.sms import send_sms_to_mobile
@@ -555,6 +556,15 @@ def handle_booking_webhook(booking_payment, raw_body, payload, state):
             ]
         )
         print("Booking Confirmed")
+        if booking.promo_code_id:
+            PromoCodeUsage.objects.get_or_create(
+                promo_code=booking.promo_code,
+                user=booking.user,
+                booking=booking,
+                defaults={
+                    "discount_amount": booking.discount_amount,
+                },
+            )
     # ------------------------------------------------------
     # FAILED
     # ------------------------------------------------------
