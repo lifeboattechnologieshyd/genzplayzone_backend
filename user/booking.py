@@ -335,7 +335,14 @@ class BookingsApi(APIView):
                     "address": booking.court.venue.address
                 },
                 "slots": slots,
+                "subtotal_amount": booking.total_amount + booking.discount_amount,
+                "discount_amount": booking.discount_amount,
                 "total_amount": booking.total_amount,
+                "promo_code":(
+                    booking.promo_code.code
+                    if booking.promo_code
+                    else None
+                ),
                 "booking_status": booking.booking_status,
                 "payment_status": booking.payment_status
             })
