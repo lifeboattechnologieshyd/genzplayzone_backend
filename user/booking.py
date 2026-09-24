@@ -345,7 +345,9 @@ class BookingsApi(APIView):
                     else None
                 ),
                 "booking_status": booking.booking_status,
-                "payment_status": booking.payment_status
+                "payment_status": booking.payment_status,
+                "refund_amount": str(booking.refund_amount),
+                "refund_status": booking.refund_status,
             })
         return CustomResponse().successResponse(
             data={
