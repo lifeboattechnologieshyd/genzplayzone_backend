@@ -700,11 +700,14 @@ class PhonePeCallBack(APIView):
             if payload.state == "COMPLETED":
                 print("Refund Completed")
                 booking.booking_status = Booking.STATUS_CANCELLED
-                booking.payment_status = Booking.PAYMENT_FAILED
+                booking.payment_status = Booking.PAYMENT_REFUNDED
+                booking.refund_status = Booking.REFUND_SUCCESS
+
                 booking.save(
                     update_fields=[
                         "booking_status",
                         "payment_status",
+                        "refund_status",
                     ]
                 )
 
@@ -717,6 +720,15 @@ class PhonePeCallBack(APIView):
             else:
 
                 print("Refund Failed")
+                booking.refund_status = Booking.REFUND_FAILED
+
+                booking.save(
+                    update_fields=[
+                        "refund_status",
+                    ]
+                )
+
+
 
                 booking_payment.save(
                     update_fields=[
